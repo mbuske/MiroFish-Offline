@@ -21,6 +21,7 @@ from enum import Enum
 from ..config import Config
 from ..utils.llm_client import LLMClient
 from ..utils.logger import get_logger
+from ..utils import get_language_instruction
 from .graph_tools import (
     GraphToolsService,
     SearchResult,
@@ -586,7 +587,7 @@ Please output the report outline in JSON format as follows:
 }
 
 Note: sections array must have at least 2 and at most 5 elements!
-IMPORTANT: The entire report outline (title, summary, section titles and descriptions) MUST be in English. Never use Chinese or other languages."""
+IMPORTANT (Language): {language_instruction} The entire report outline (title, summary, section titles and descriptions) MUST be written in that language. The ontology entity/edge type names remain unchanged."""
 
 PLAN_USER_PROMPT_TEMPLATE = """\
 [Prediction Scenario Settings]
@@ -652,13 +653,14 @@ Your task is to:
      > "Certain groups will state: original content..."
    - These quotes are core evidence of simulation predictions
 
-3. [Language Consistency - ALWAYS Write in English]
-   - The entire report MUST be written in English, regardless of source material language
-   - Tool-returned content may contain Chinese, mixed Chinese-English, or other languages
-   - When quoting tool-returned non-English content, ALWAYS translate it to fluent English before writing to report
+3. [Language Consistency]
+   - {language_instruction}
+   - The entire report MUST be written in that language, regardless of source material language
+   - Tool-returned content may be in a different or mixed language
+   - When quoting tool-returned content in another language, ALWAYS translate it fluently into the target language before writing to the report
    - Keep original meaning unchanged during translation, ensure natural expression
    - This rule applies to both body text and quoted content (> format)
-   - NEVER switch to Chinese or any other language mid-report
+   - NEVER switch to a different language mid-report
 
 4. [Faithfully Present Prediction Results]
    - Report content must reflect simulation results that represent the future in the simulated world
@@ -854,7 +856,7 @@ Prediction Condition: {simulation_requirement}
 - Concise and direct, don't write lengthy passages
 - Use > format to quote key content
 - Give conclusions first, then explain reasons
-- ALWAYS respond in English, regardless of the language used in source material or report content"""
+- {language_instruction} Respond in that language regardless of the language used in source material or report content"""
 
 CHAT_OBSERVATION_SUFFIX = "\n\nPlease answer the question concisely."
 
@@ -1170,7 +1172,9 @@ class ReportAgent:
         if progress_callback:
             progress_callback("planning", 30, "Generating report outline...")
         
-        system_prompt = PLAN_SYSTEM_PROMPT
+        system_prompt = PLAN_SYSTEM_PROMPT.replace(
+            "{language_instruction}", get_language_instruction()
+        )
         user_prompt = PLAN_USER_PROMPT_TEMPLATE.format(
             simulation_requirement=self.simulation_requirement,
             total_nodes=context.get('graph_statistics', {}).get('total_nodes', 0),
@@ -1265,6 +1269,7 @@ class ReportAgent:
             simulation_requirement=self.simulation_requirement,
             section_title=section.title,
             tools_description=self._get_tools_description(),
+            language_instruction=get_language_instruction(),
         )
 
         # Build user prompt - pass maximum 4000 characters for each completed section
@@ -1812,6 +1817,7 @@ class ReportAgent:
             simulation_requirement=self.simulation_requirement,
             report_content=report_content if report_content else "（nonereport）",
             tools_description=self._get_tools_description(),
+            language_instruction=get_language_instruction(),
         )
 
         # Buildmessage
