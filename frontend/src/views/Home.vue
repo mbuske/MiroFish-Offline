@@ -5,8 +5,9 @@
       <div class="nav-brand" :style="s.navBrand">MIROFISH OFFLINE</div>
       <div class="nav-links" :style="s.navLinks">
         <a href="https://github.com/nikmcfly/MiroFish-Offline" target="_blank" class="github-link" :style="s.githubLink">
-          Visit our Github <span>↗</span>
+          {{ $t('nav.visitGithub') }} <span>↗</span>
         </a>
+        <LanguageSwitcher />
       </div>
     </nav>
 
@@ -15,21 +16,25 @@
       <section class="hero-section" :style="s.heroSection">
         <div class="hero-left" :style="s.heroLeft">
           <div class="tag-row" :style="s.tagRow">
-            <span class="orange-tag" :style="s.orangeTag">Offline Multi-Agent Simulation Engine</span>
-            <span class="version-text" :style="s.versionText">/ v0.1-preview</span>
+            <span class="orange-tag" :style="s.orangeTag">{{ $t('home.tagline') }}</span>
+            <span class="version-text" :style="s.versionText">{{ $t('home.version') }}</span>
           </div>
 
           <h1 class="main-title" :style="s.mainTitle">
-            Upload Any Document<br>
-            <span class="gradient-text" :style="s.gradientText">Predict What Happens Next</span>
+            {{ $t('home.heroTitle1') }}<br>
+            <span class="gradient-text" :style="s.gradientText">{{ $t('home.heroTitle2') }}</span>
           </h1>
 
           <div class="hero-desc" :style="s.heroDesc">
             <p :style="s.heroDescP">
-              From a single document, <span :style="s.highlightBold">MiroFish Offline</span> extracts reality seeds and builds a parallel world of <span :style="s.highlightOrange">autonomous AI agents</span> — running entirely on your machine. Inject variables, observe emergent behavior, and find <span :style="s.highlightCode">"local optima"</span> in complex social dynamics.
+              <i18n-t keypath="home.heroDesc" tag="span">
+                <template #brand><span :style="s.highlightBold">{{ $t('home.heroDescBrand') }}</span></template>
+                <template #agentScale><span :style="s.highlightOrange">{{ $t('home.heroDescAgentScale') }}</span></template>
+                <template #optimalSolution><span :style="s.highlightCode">{{ $t('home.heroDescOptimalSolution') }}</span></template>
+              </i18n-t>
             </p>
             <p class="slogan-text" :style="s.sloganText">
-              Your data never leaves your machine. The future is simulated locally<span :style="s.blinkingCursor">_</span>
+              {{ $t('home.slogan') }}<span :style="s.blinkingCursor">_</span>
             </p>
           </div>
 
@@ -49,28 +54,28 @@
         <!-- Left Column: Status & Steps -->
         <div class="left-panel" :style="s.leftPanel">
           <div class="panel-header" :style="s.panelHeader">
-            <span :style="s.statusDot">■</span> System Status
+            <span :style="s.statusDot">■</span> {{ $t('home.systemStatus') }}
           </div>
 
-          <h2 class="section-title" :style="s.sectionTitle">Ready</h2>
+          <h2 class="section-title" :style="s.sectionTitle">{{ $t('home.systemReady') }}</h2>
           <p class="section-desc" :style="s.sectionDesc">
-            Local prediction engine on standby. Upload unstructured data to initialize a simulation.
+            {{ $t('home.systemReadyDesc') }}
           </p>
 
           <div class="metrics-row" :style="s.metricsRow">
             <div class="metric-card" :style="s.metricCard">
-              <div class="metric-value" :style="s.metricValue">Free</div>
-              <div class="metric-label" :style="s.metricLabel">Runs on your hardware</div>
+              <div class="metric-value" :style="s.metricValue">{{ $t('home.metricLowCost') }}</div>
+              <div class="metric-label" :style="s.metricLabel">{{ $t('home.metricLowCostDesc') }}</div>
             </div>
             <div class="metric-card" :style="s.metricCard">
-              <div class="metric-value" :style="s.metricValue">Private</div>
-              <div class="metric-label" :style="s.metricLabel">100% offline, no cloud</div>
+              <div class="metric-value" :style="s.metricValue">{{ $t('home.metricHighAvail') }}</div>
+              <div class="metric-label" :style="s.metricLabel">{{ $t('home.metricHighAvailDesc') }}</div>
             </div>
           </div>
 
           <div class="steps-container" :style="s.stepsContainer">
             <div class="steps-header" :style="s.stepsHeader">
-               <span :style="s.diamondIcon">◇</span> Workflow Sequence
+               <span :style="s.diamondIcon">◇</span> {{ $t('home.workflowSequence') }}
             </div>
             <div :style="s.workflowList">
               <div v-for="(step, i) in steps" :key="i" :style="s.workflowItem">
@@ -89,8 +94,8 @@
           <div class="console-box" :style="s.consoleBox">
             <div :style="s.consoleSection">
               <div class="console-header" :style="s.consoleHeader">
-                <span>01 / Reality Seeds</span>
-                <span>Supported: PDF, MD, TXT</span>
+                <span>{{ $t('home.realitySeed') }}</span>
+                <span>{{ $t('home.supportedFormats') }}</span>
               </div>
               <div
                 :style="s.uploadZone"
@@ -102,8 +107,8 @@
                 <input ref="fileInput" type="file" multiple accept=".pdf,.md,.txt" @change="handleFileSelect" style="display: none" :disabled="loading" />
                 <div v-if="files.length === 0" :style="s.uploadPlaceholder">
                   <div :style="s.uploadIcon">↑</div>
-                  <div :style="s.uploadTitle">Drag & drop files here</div>
-                  <div :style="s.uploadHint">or click to browse</div>
+                  <div :style="s.uploadTitle">{{ $t('home.dragToUpload') }}</div>
+                  <div :style="s.uploadHint">{{ $t('home.orBrowse') }}</div>
                 </div>
                 <div v-else :style="s.fileList">
                   <div v-for="(file, index) in files" :key="index" :style="s.fileItem">
@@ -115,22 +120,22 @@
               </div>
             </div>
 
-            <div :style="s.consoleDivider"><span :style="s.consoleDividerText">Parameters</span></div>
+            <div :style="s.consoleDivider"><span :style="s.consoleDividerText">{{ $t('home.inputParams') }}</span></div>
 
             <div :style="s.consoleSection">
               <div class="console-header" :style="s.consoleHeader">
-                <span>>_ 02 / Simulation Prompt</span>
+                <span>{{ $t('home.simulationPrompt') }}</span>
               </div>
               <div :style="s.inputWrapper">
-                <textarea v-model="formData.simulationRequirement" :style="s.codeInput" placeholder="// Describe your simulation or prediction goal in natural language" rows="6" :disabled="loading"></textarea>
-                <div :style="s.modelBadge">Engine: Ollama + Neo4j (local)</div>
+                <textarea v-model="formData.simulationRequirement" :style="s.codeInput" :placeholder="$t('home.promptPlaceholder')" rows="6" :disabled="loading"></textarea>
+                <div :style="s.modelBadge">{{ $t('home.engineBadge') }}</div>
               </div>
             </div>
 
             <div :style="s.btnSection">
               <button :style="s.startEngineBtn" @click="startSimulation" :disabled="!canSubmit || loading">
-                <span v-if="!loading">Start Engine</span>
-                <span v-else>Initializing...</span>
+                <span v-if="!loading">{{ $t('home.startEngine') }}</span>
+                <span v-else>{{ $t('home.initializing') }}</span>
                 <span>→</span>
               </button>
             </div>
@@ -146,7 +151,11 @@
 <script setup>
 import { ref, computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
+import LanguageSwitcher from '../components/LanguageSwitcher.vue'
+
+const { t } = useI18n()
 
 const mono = 'JetBrains Mono, monospace'
 const sans = 'Space Grotesk, Noto Sans SC, system-ui, sans-serif'
@@ -217,13 +226,13 @@ const s = reactive({
   startEngineBtn: { width: '100%', background: '#000', color: '#fff', border: 'none', padding: '20px', fontFamily: mono, fontWeight: '700', fontSize: '1.1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', letterSpacing: '1px' },
 })
 
-const steps = [
-  { num: '01', title: 'Graph Build', desc: 'Extract reality seeds from your document, build knowledge graph with Neo4j + GraphRAG' },
-  { num: '02', title: 'Env Setup', desc: 'Generate agent personas, configure simulation parameters via local Ollama LLM' },
-  { num: '03', title: 'Simulation', desc: 'Run multi-agent simulation locally with dynamic memory updates and emergent behavior' },
-  { num: '04', title: 'Report', desc: 'ReportAgent analyzes the simulation results and generates a detailed prediction report' },
-  { num: '05', title: 'Interaction', desc: 'Chat with any agent from the simulated world or discuss findings with ReportAgent' },
-]
+const steps = computed(() => [
+  { num: '01', title: t('home.step01Title'), desc: t('home.step01Desc') },
+  { num: '02', title: t('home.step02Title'), desc: t('home.step02Desc') },
+  { num: '03', title: t('home.step03Title'), desc: t('home.step03Desc') },
+  { num: '04', title: t('home.step04Title'), desc: t('home.step04Desc') },
+  { num: '05', title: t('home.step05Title'), desc: t('home.step05Desc') },
+])
 
 const router = useRouter()
 

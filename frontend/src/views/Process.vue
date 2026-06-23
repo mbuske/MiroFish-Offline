@@ -56,7 +56,7 @@
             <!-- Node/Edge detail panel -->
             <div v-if="selectedItem" class="detail-panel">
               <div class="detail-panel-header">
-                <span class="detail-title">{{ selectedItem.type === 'node' ? 'Node Details' : 'Relationship' }}</span>
+                <span class="detail-title">{{ selectedItem.type === 'node' ? $t('graph.nodeDetails') : $t('graph.relationship') }}</span>
                 <span v-if="selectedItem.type === 'node'" class="detail-badge" :style="{ background: selectedItem.color }">
                   {{ selectedItem.entityType }}
                 </span>
@@ -171,7 +171,7 @@
               <div class="loading-ring"></div>
               <div class="loading-ring"></div>
             </div>
-            <p class="loading-text">Loading graph data...</p>
+            <p class="loading-text">{{ $t('graph.graphDataLoading') }}</p>
           </div>
           
           <!-- Waiting for build -->
@@ -234,7 +234,7 @@
             <div class="phase-header">
               <span class="phase-num">01</span>
               <div class="phase-info">
-                <div class="phase-title">Ontology Generation</div>
+                <div class="phase-title">{{ $t('step1.ontologyGeneration') }}</div>
                 <div class="phase-api">/api/graph/ontology/generate</div>
               </div>
               <span class="phase-status" :class="getPhaseStatusClass(0)">
@@ -295,7 +295,7 @@
               
               <!-- Waiting state -->
               <div class="detail-section waiting-state" v-if="!projectData?.ontology && currentPhase === 0 && !ontologyProgress">
-                <div class="waiting-hint">Waiting for ontology generation...</div>
+                <div class="waiting-hint">{{ $t('graph.waitingOntology') }}</div>
               </div>
             </div>
           </div>
@@ -343,7 +343,7 @@
                 <div class="build-result">
                   <div class="result-item">
                     <span class="result-value">{{ graphData.node_count }}</span>
-                    <span class="result-label">Entity Nodes</span>
+                    <span class="result-label">{{ $t('step1.entityNodes') }}</span>
                   </div>
                   <div class="result-item">
                     <span class="result-value">{{ graphData.edge_count }}</span>
@@ -363,7 +363,7 @@
             <div class="phase-header">
               <span class="phase-num">03</span>
               <div class="phase-info">
-                <div class="phase-title">Build Complete</div>
+                <div class="phase-title">{{ $t('step1.buildComplete') }}</div>
                 <div class="phase-api">Ready for next step</div>
               </div>
               <span class="phase-status" :class="getPhaseStatusClass(2)">
@@ -375,7 +375,7 @@
           <!-- Next step button -->
           <div class="next-step-section" v-if="currentPhase >= 2">
             <button class="next-step-btn" @click="goToNextStep" :disabled="currentPhase < 2">
-              Enter Environment Setup
+              {{ $t('step1.enterEnvSetup') }}
               <span class="btn-arrow">→</span>
             </button>
           </div>
@@ -414,12 +414,14 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 import * as d3 from 'd3'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 
 // Current project ID (may change from 'new' to actual ID)
 const currentProjectId = ref(route.params.projectId)
@@ -452,10 +454,10 @@ const statusClass = computed(() => {
 
 const statusText = computed(() => {
   if (error.value) return 'Build Failed'
-  if (currentPhase.value >= 2) return 'Build Complete'
+  if (currentPhase.value >= 2) return t('step1.buildComplete')
   if (currentPhase.value === 1) return 'Building Graph'
   if (currentPhase.value === 0) return 'Generating Ontology'
-  return 'Initializing'
+  return t('step2.initializing')
 })
 
 const entityTypes = computed(() => {
@@ -540,12 +542,12 @@ const getPhaseStatusClass = (phase) => {
 }
 
 const getPhaseStatusText = (phase) => {
-  if (currentPhase.value > phase) return 'Completed'
+  if (currentPhase.value > phase) return t('common.completed')
   if (currentPhase.value === phase) {
     if (phase === 1 && buildProgress.value) {
       return `${buildProgress.value.progress}%`
     }
-    return 'In Progress'
+    return t('step1.inProgress')
   }
   return 'Waiting'
 }
