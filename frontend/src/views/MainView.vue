@@ -3,7 +3,7 @@
     <!-- Header -->
     <header class="app-header">
       <div class="header-left">
-        <div class="brand" @click="router.push('/')">MIROFISH OFFLINE</div>
+        <div class="brand" @click="router.push('/')">{{ $t('common.brand') }}</div>
       </div>
 
       <div class="header-center">
@@ -22,7 +22,7 @@
 
       <div class="header-right">
         <div class="workflow-step">
-          <span class="step-num">Step {{ currentStep }}/5</span>
+          <span class="step-num">{{ $t('common.stepCounter', { step: currentStep }) }}</span>
           <span class="step-name">{{ stepNames[currentStep - 1] }}</span>
         </div>
         <div class="step-divider"></div>
@@ -137,9 +137,9 @@ const statusClass = computed(() => {
 const statusText = computed(() => {
   if (error.value) return t('common.error')
   if (currentPhase.value >= 2) return t('common.ready')
-  if (currentPhase.value === 1) return 'Building Graph'
-  if (currentPhase.value === 0) return 'Generating Ontology'
-  return 'Initializing'
+  if (currentPhase.value === 1) return t('mainx.buildingGraph')
+  if (currentPhase.value === 0) return t('mainx.generatingOntology')
+  return t('mainx.initializing')
 })
 
 // --- Helpers ---

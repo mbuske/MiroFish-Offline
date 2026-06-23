@@ -2,7 +2,7 @@
   <div class="home-container">
     <!-- Top Navigation Bar -->
     <nav class="navbar" :style="s.navbar">
-      <div class="nav-brand" :style="s.navBrand">MIROFISH OFFLINE</div>
+      <div class="nav-brand" :style="s.navBrand">{{ $t('common.brand') }}</div>
       <div class="nav-links" :style="s.navLinks">
         <a href="https://github.com/nikmcfly/MiroFish-Offline" target="_blank" class="github-link" :style="s.githubLink">
           {{ $t('nav.visitGithub') }} <span>↗</span>
@@ -43,7 +43,7 @@
 
         <div class="hero-right" :style="s.heroRight">
           <div class="logo-container" :style="s.logoContainer">
-            <img src="../assets/logo/MiroFish_logo_left.jpeg" alt="MiroFish Logo" :style="s.heroLogo" />
+            <img src="../assets/logo/MiroFish_logo_left.jpeg" :alt="$t('homex.logoAlt')" :style="s.heroLogo" />
           </div>
           <button :style="s.scrollDownBtn" @click="scrollToBottom">↓</button>
         </div>

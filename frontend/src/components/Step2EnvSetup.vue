@@ -22,19 +22,19 @@
 
           <div v-if="simulationId" class="info-card">
             <div class="info-row">
-              <span class="info-label">Project ID</span>
+              <span class="info-label">{{ $t('step2x.projectId') }}</span>
               <span class="info-value mono">{{ projectData?.project_id }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Graph ID</span>
+              <span class="info-label">{{ $t('step2x.graphId') }}</span>
               <span class="info-value mono">{{ projectData?.graph_id }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Simulation ID</span>
+              <span class="info-label">{{ $t('step2x.simulationId') }}</span>
               <span class="info-value mono">{{ simulationId }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Task ID</span>
+              <span class="info-label">{{ $t('step2x.taskId') }}</span>
               <span class="info-value mono">{{ taskId || $t('step2.asyncTaskDone') }}</span>
             </div>
           </div>
@@ -183,7 +183,7 @@
             <div class="config-block">
               <div class="config-block-header">
                 <span class="config-block-title">{{ $t('step2.agentConfig') }}</span>
-                <span class="config-block-badge">{{ simulationConfig.agent_configs?.length || 0 }} Number</span>
+                <span class="config-block-badge">{{ $t('step2x.agentCountBadge', { count: simulationConfig.agent_configs?.length || 0 }) }}</span>
               </div>
               <div class="agents-cards">
                 <div 
@@ -194,7 +194,7 @@
                   <!-- Card header -->
                   <div class="agent-card-header">
                     <div class="agent-identity">
-                      <span class="agent-id">Agent {{ agent.agent_id }}</span>
+                      <span class="agent-id">{{ $t('step2x.agentCard', { id: agent.agent_id }) }}</span>
                       <span class="agent-name">{{ agent.entity_name }}</span>
                     </div>
                     <div class="agent-tags">
@@ -237,7 +237,7 @@
                       </div>
                       <div class="param-item">
                         <span class="param-label">{{ $t('step2.responseDelay') }}</span>
-                        <span class="param-value">{{ agent.response_delay_min }}-{{ agent.response_delay_max }}min</span>
+                        <span class="param-value">{{ agent.response_delay_min }}-{{ agent.response_delay_max }}{{ $t('step2x.minSuffix') }}</span>
                       </div>
                     </div>
                     <div class="param-group">
@@ -405,7 +405,7 @@
                     <div class="post-header">
                       <span class="post-role">{{ post.poster_type }}</span>
                       <span class="post-agent-info">
-                        <span class="post-id">Agent {{ post.poster_agent_id }}</span>
+                        <span class="post-id">{{ $t('step2x.agentCard', { id: post.poster_agent_id }) }}</span>
                         <span class="post-username">@{{ getAgentUsername(post.poster_agent_id) }}</span>
                       </span>
                     </div>
@@ -618,8 +618,8 @@
     <!-- Bottom Info / Logs -->
     <div class="system-logs">
       <div class="log-header">
-        <span class="log-title">SYSTEM DASHBOARD</span>
-        <span class="log-id">{{ simulationId || 'NO_SIMULATION' }}</span>
+        <span class="log-title">{{ $t('step2x.systemDashboard') }}</span>
+        <span class="log-id">{{ simulationId || $t('step2x.noSimulation') }}</span>
       </div>
       <div class="log-content" ref="logContent">
         <div class="log-line" v-for="(log, idx) in systemLogs" :key="idx">

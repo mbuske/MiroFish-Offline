@@ -3,7 +3,7 @@
     <!-- Header -->
     <header class="app-header">
       <div class="header-left">
-        <div class="brand" @click="router.push('/')">MIROFISH OFFLINE</div>
+        <div class="brand" @click="router.push('/')">{{ $t('common.brand') }}</div>
       </div>
       
       <div class="header-center">
@@ -22,7 +22,7 @@
 
       <div class="header-right">
         <div class="workflow-step">
-          <span class="step-num">Step 2/5</span>
+          <span class="step-num">{{ $t('common.stepCounter', { step: 2 }) }}</span>
           <span class="step-name">{{ $tm('main.stepNames')[1] }}</span>
         </div>
         <div class="step-divider"></div>
@@ -115,7 +115,7 @@ const statusClass = computed(() => {
 const statusText = computed(() => {
   if (currentStatus.value === 'error') return t('common.error')
   if (currentStatus.value === 'completed') return t('common.ready')
-  return 'Preparing'
+  return t('viewx.preparing')
 })
 
 // --- Helpers ---

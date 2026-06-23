@@ -3,7 +3,7 @@
     <!-- Header -->
     <header class="app-header">
       <div class="header-left">
-        <div class="brand" @click="router.push('/')">MIROFISH OFFLINE</div>
+        <div class="brand" @click="router.push('/')">{{ $t('common.brand') }}</div>
       </div>
       
       <div class="header-center">
@@ -22,7 +22,7 @@
 
       <div class="header-right">
         <div class="workflow-step">
-          <span class="step-num">Step 3/5</span>
+          <span class="step-num">{{ $t('common.stepCounter', { step: 3 }) }}</span>
           <span class="step-name">{{ $tm('main.stepNames')[2] }}</span>
         </div>
         <div class="step-divider"></div>

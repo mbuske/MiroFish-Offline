@@ -8,7 +8,7 @@
           <!-- Report Header -->
           <div class="report-header-block">
             <div class="report-meta">
-              <span class="report-tag">Prediction Report</span>
+              <span class="report-tag">{{ $t('step4x.predictionReport') }}</span>
               <span class="report-id">ID: {{ reportId || 'REF-2024-X92' }}</span>
             </div>
             <h1 class="main-title">{{ reportOutline.title }}</h1>
@@ -89,15 +89,15 @@
         <div class="workflow-overview" v-if="agentLogs.length > 0 || reportOutline">
           <div class="workflow-metrics">
             <div class="metric">
-              <span class="metric-label">Sections</span>
+              <span class="metric-label">{{ $t('step4x.sections') }}</span>
               <span class="metric-value mono">{{ completedSections }}/{{ totalSections }}</span>
             </div>
             <div class="metric">
-              <span class="metric-label">Elapsed</span>
+              <span class="metric-label">{{ $t('step4x.elapsed') }}</span>
               <span class="metric-value mono">{{ formatElapsedTime }}</span>
             </div>
             <div class="metric">
-              <span class="metric-label">Tools</span>
+              <span class="metric-label">{{ $t('step4x.tools') }}</span>
               <span class="metric-value mono">{{ totalToolCalls }}</span>
             </div>
             <div class="metric metric-right">
@@ -166,11 +166,11 @@
                   <!-- Report Start -->
                   <template v-if="log.action === 'report_start'">
                     <div class="info-row">
-                      <span class="info-key">Simulation</span>
+                      <span class="info-key">{{ $t('step4x.simulation') }}</span>
                       <span class="info-val mono">{{ log.details?.simulation_id }}</span>
                     </div>
                     <div class="info-row" v-if="log.details?.simulation_requirement">
-                      <span class="info-key">Requirement</span>
+                      <span class="info-key">{{ $t('step4x.requirement') }}</span>
                       <span class="info-val">{{ log.details.simulation_requirement }}</span>
                     </div>
                   </template>
@@ -182,7 +182,7 @@
                   <template v-if="log.action === 'planning_complete'">
                     <div class="status-message success">{{ log.details?.message }}</div>
                     <div class="outline-badge" v-if="log.details?.outline">
-                      {{ log.details.outline.sections?.length || 0 }} sections planned
+                      {{ $t('step4x.sectionsPlanned', { count: log.details.outline.sections?.length || 0 }) }}
                     </div>
                   </template>
 
@@ -307,12 +307,12 @@
                   <!-- LLM Response -->
                   <template v-if="log.action === 'llm_response'">
                     <div class="llm-meta">
-                      <span class="meta-tag">Iteration {{ log.details?.iteration }}</span>
+                      <span class="meta-tag">{{ $t('step4x.iteration', { n: log.details?.iteration }) }}</span>
                       <span class="meta-tag" :class="{ active: log.details?.has_tool_calls }">
-                        Tools: {{ log.details?.has_tool_calls ? 'Yes' : 'No' }}
+                        {{ $t('step4x.toolsLabel') }}: {{ log.details?.has_tool_calls ? $t('step4x.yes') : $t('step4x.no') }}
                       </span>
                       <span class="meta-tag" :class="{ active: log.details?.has_final_answer, 'final-answer': log.details?.has_final_answer }">
-                        Final: {{ log.details?.has_final_answer ? 'Yes' : 'No' }}
+                        {{ $t('step4x.finalLabel') }}: {{ log.details?.has_final_answer ? $t('step4x.yes') : $t('step4x.no') }}
                       </span>
                     </div>
                     <!-- Show special hint when it's the final answer -->
@@ -320,7 +320,7 @@
                       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="20 6 9 17 4 12"></polyline>
                       </svg>
-                      <span>Section "{{ log.section_title }}" content generated</span>
+                      <span>{{ $t('step4x.sectionContentGenerated', { title: log.section_title }) }}</span>
                     </div>
                     <div v-if="expandedLogs.has(log.timestamp) && log.details?.response" class="llm-content">
                       <pre>{{ log.details.response }}</pre>
@@ -334,7 +334,7 @@
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                         <polyline points="22 4 12 14.01 9 11.01"></polyline>
                       </svg>
-                      <span>Report Generation Complete</span>
+                      <span>{{ $t('step4x.reportGenerationComplete') }}</span>
                     </div>
                   </template>
                 </div>
@@ -347,17 +347,17 @@
                   <div class="footer-actions">
                     <!-- Tool Call: Show/Hide Params -->
                     <button v-if="log.action === 'tool_call' && log.details?.parameters" class="action-btn" @click.stop="toggleLogExpand(log)">
-                      {{ expandedLogs.has(log.timestamp) ? 'Hide Params' : 'Show Params' }}
+                      {{ expandedLogs.has(log.timestamp) ? $t('step4x.hideParams') : $t('step4x.showParams') }}
                     </button>
-                    
+
                     <!-- Tool Result: Raw/Structured View -->
                     <button v-if="log.action === 'tool_result'" class="action-btn" @click.stop="toggleRawResult(log.timestamp, $event)">
-                      {{ showRawResult[log.timestamp] ? 'Structured View' : 'Raw Output' }}
+                      {{ showRawResult[log.timestamp] ? $t('step4x.structuredView') : $t('step4x.rawOutput') }}
                     </button>
-                    
+
                     <!-- LLM Response: Show/Hide Response -->
                     <button v-if="log.action === 'llm_response' && log.details?.response" class="action-btn" @click.stop="toggleLogExpand(log)">
-                      {{ expandedLogs.has(log.timestamp) ? 'Hide Response' : 'Show Response' }}
+                      {{ expandedLogs.has(log.timestamp) ? $t('step4x.hideResponse') : $t('step4x.showResponse') }}
                     </button>
                   </div>
                 </div>
@@ -368,7 +368,7 @@
           <!-- Empty State -->
           <div v-if="agentLogs.length === 0 && !isComplete" class="workflow-empty">
             <div class="empty-pulse"></div>
-            <span>Waiting for agent activity...</span>
+            <span>{{ $t('step4x.waitingForAgentActivity') }}</span>
           </div>
         </div>
       </div>
@@ -377,7 +377,7 @@
     <!-- Bottom Console Logs -->
     <div class="console-logs">
       <div class="log-header">
-        <span class="log-title">CONSOLE OUTPUT</span>
+        <span class="log-title">{{ $t('step4x.consoleOutput') }}</span>
         <span class="log-id">{{ reportId || 'NO_REPORT' }}</span>
       </div>
       <div class="log-content" ref="logContent">
@@ -497,39 +497,39 @@ const isLogCollapsed = (log) => {
 // Tool configurations with display names and colors
 const toolConfig = {
   'insight_forge': {
-    name: 'Deep Insight',
+    nameKey: 'step4x.deepInsight',
     color: 'purple',
     icon: 'lightbulb' // Lightbulb icon - represents insight
   },
   'panorama_search': {
-    name: 'Panorama Search',
+    nameKey: 'step4x.panoramaSearch',
     color: 'blue',
     icon: 'globe' // Globe icon - represents panorama search
   },
   'interview_agents': {
-    name: 'Agent Interview',
+    nameKey: 'step4x.agentInterview',
     color: 'green',
     icon: 'users' // User icon - represents conversation
   },
   'quick_search': {
-    name: 'Quick Search',
+    nameKey: 'step4x.quickSearch',
     color: 'orange',
     icon: 'zap' // Lightning icon - represents speed
   },
   'get_graph_statistics': {
-    name: 'Graph Stats',
+    nameKey: 'step4x.graphStats',
     color: 'cyan',
     icon: 'chart' // Chart icon - represents statistics
   },
   'get_entities_by_type': {
-    name: 'Entity Query',
+    nameKey: 'step4x.entityQuery',
     color: 'pink',
     icon: 'database' // Database icon - represents entities
   }
 }
 
 const getToolDisplayName = (toolName) => {
-  return toolConfig[toolName]?.name || toolName
+  return toolConfig[toolName]?.nameKey ? t(toolConfig[toolName].nameKey) : toolName
 }
 
 const getToolColor = (toolName) => {
@@ -983,21 +983,21 @@ const InsightDisplay = {
       // Header Section - like interview header
       h('div', { class: 'insight-header' }, [
         h('div', { class: 'header-main' }, [
-          h('div', { class: 'header-title' }, 'Deep Insight'),
+          h('div', { class: 'header-title' }, t('step4x.deepInsight')),
           h('div', { class: 'header-stats' }, [
             h('span', { class: 'stat-item' }, [
               h('span', { class: 'stat-value' }, props.result.stats.facts || props.result.facts.length),
-              h('span', { class: 'stat-label' }, 'Facts')
+              h('span', { class: 'stat-label' }, t('step4x.facts'))
             ]),
             h('span', { class: 'stat-divider' }, '/'),
             h('span', { class: 'stat-item' }, [
               h('span', { class: 'stat-value' }, props.result.stats.entities || props.result.entities.length),
-              h('span', { class: 'stat-label' }, 'Entities')
+              h('span', { class: 'stat-label' }, t('step4x.entities'))
             ]),
             h('span', { class: 'stat-divider' }, '/'),
             h('span', { class: 'stat-item' }, [
               h('span', { class: 'stat-value' }, props.result.stats.relationships || props.result.relations.length),
-              h('span', { class: 'stat-label' }, 'Relations')
+              h('span', { class: 'stat-label' }, t('step4x.relations'))
             ]),
             props.resultLength && h('span', { class: 'stat-divider' }, '·'),
             props.resultLength && h('span', { class: 'stat-size' }, formatSize(props.resultLength))
@@ -1154,16 +1154,16 @@ const PanoramaDisplay = {
       // Header Section
       h('div', { class: 'panorama-header' }, [
         h('div', { class: 'header-main' }, [
-          h('div', { class: 'header-title' }, 'Panorama Search'),
+          h('div', { class: 'header-title' }, t('step4x.panoramaSearch')),
           h('div', { class: 'header-stats' }, [
             h('span', { class: 'stat-item' }, [
               h('span', { class: 'stat-value' }, props.result.stats.nodes),
-              h('span', { class: 'stat-label' }, 'Nodes')
+              h('span', { class: 'stat-label' }, t('step4x.nodes'))
             ]),
             h('span', { class: 'stat-divider' }, '/'),
             h('span', { class: 'stat-item' }, [
               h('span', { class: 'stat-value' }, props.result.stats.edges),
-              h('span', { class: 'stat-label' }, 'Edges')
+              h('span', { class: 'stat-label' }, t('step4x.edges'))
             ]),
             props.resultLength && h('span', { class: 'stat-divider' }, '·'),
             props.resultLength && h('span', { class: 'stat-size' }, formatSize(props.resultLength))
@@ -1425,16 +1425,16 @@ const InterviewDisplay = {
       // Header Section
       h('div', { class: 'interview-header' }, [
         h('div', { class: 'header-main' }, [
-          h('div', { class: 'header-title' }, 'Agent Interview'),
+          h('div', { class: 'header-title' }, t('step4x.agentInterview')),
           h('div', { class: 'header-stats' }, [
             h('span', { class: 'stat-item' }, [
               h('span', { class: 'stat-value' }, props.result.successCount || props.result.interviews.length),
-              h('span', { class: 'stat-label' }, 'Interviewed')
+              h('span', { class: 'stat-label' }, t('step4x.interviewed'))
             ]),
             props.result.totalCount > 0 && h('span', { class: 'stat-divider' }, '/'),
             props.result.totalCount > 0 && h('span', { class: 'stat-item' }, [
               h('span', { class: 'stat-value' }, props.result.totalCount),
-              h('span', { class: 'stat-label' }, 'Total')
+              h('span', { class: 'stat-label' }, t('step4x.total'))
             ]),
             props.resultLength && h('span', { class: 'stat-divider' }, '·'),
             props.resultLength && h('span', { class: 'stat-size' }, formatSize(props.resultLength))
@@ -1451,7 +1451,7 @@ const InterviewDisplay = {
           onClick: () => { activeIndex.value = i }
         }, [
           h('span', { class: 'tab-avatar' }, interview.name ? interview.name.charAt(0) : (i + 1)),
-          h('span', { class: 'tab-name' }, interview.title || interview.name || `Agent ${i + 1}`)
+          h('span', { class: 'tab-name' }, interview.title || interview.name || t('step4x.agentN', { n: i + 1 }))
         ]))
       ),
       
@@ -1461,7 +1461,7 @@ const InterviewDisplay = {
         h('div', { class: 'agent-profile' }, [
           h('div', { class: 'profile-avatar' }, props.result.interviews[activeIndex.value]?.name?.charAt(0) || 'A'),
           h('div', { class: 'profile-info' }, [
-            h('div', { class: 'profile-name' }, props.result.interviews[activeIndex.value]?.name || 'Agent'),
+            h('div', { class: 'profile-name' }, props.result.interviews[activeIndex.value]?.name || t('step4x.agent')),
             h('div', { class: 'profile-role' }, props.result.interviews[activeIndex.value]?.role || ''),
             props.result.interviews[activeIndex.value]?.bio && h('div', { class: 'profile-bio' }, props.result.interviews[activeIndex.value].bio)
           ])
@@ -1469,7 +1469,7 @@ const InterviewDisplay = {
         
         // Selection Reason - Why this agent was selected
         props.result.interviews[activeIndex.value]?.selectionReason && h('div', { class: 'selection-reason' }, [
-          h('div', { class: 'reason-label' }, 'Selection Reason'),
+          h('div', { class: 'reason-label' }, t('step4x.selectionReason')),
           h('div', { class: 'reason-content' }, props.result.interviews[activeIndex.value].selectionReason)
         ]),
 
@@ -1477,7 +1477,7 @@ const InterviewDisplay = {
         h('div', { class: 'qa-thread' }, 
           (props.result.interviews[activeIndex.value]?.questions?.length > 0 
             ? props.result.interviews[activeIndex.value].questions 
-            : [props.result.interviews[activeIndex.value]?.question || 'No question available']
+            : [props.result.interviews[activeIndex.value]?.question || t('step4x.noQuestionAvailable')]
           ).map((question, qIdx) => {
             const interview = props.result.interviews[activeIndex.value]
             const currentPlatform = getPlatformTab(activeIndex.value, qIdx)
@@ -1492,7 +1492,7 @@ const InterviewDisplay = {
               h('div', { class: 'qa-question' }, [
                 h('div', { class: 'qa-badge q-badge' }, `Q${qIdx + 1}`),
                 h('div', { class: 'qa-content' }, [
-                  h('div', { class: 'qa-sender' }, 'Interviewer'),
+                  h('div', { class: 'qa-sender' }, t('step4x.interviewer')),
                   h('div', { class: 'qa-text' }, question)
                 ])
               ]),
@@ -1502,7 +1502,7 @@ const InterviewDisplay = {
                 h('div', { class: 'qa-badge a-badge' }, `A${qIdx + 1}`),
                 h('div', { class: 'qa-content' }, [
                   h('div', { class: 'qa-answer-header' }, [
-                    h('div', { class: 'qa-sender' }, interview?.name || 'Agent'),
+                    h('div', { class: 'qa-sender' }, interview?.name || t('step4x.agent')),
                     // Dual-platform switch button (only show with real dual-platform answers)
                     hasDualPlatform && h('div', { class: 'platform-switch' }, [
                       h('button', {
@@ -1539,7 +1539,7 @@ const InterviewDisplay = {
                   !isPlaceholder && answerText.length > 400 && h('button', {
                     class: 'expand-answer-btn',
                     onClick: () => toggleAnswer(expandKey)
-                  }, isExpanded ? 'Show Less' : 'Show More')
+                  }, isExpanded ? t('step4x.showLess') : t('step4x.showMore'))
                 ])
               ])
             ])
@@ -1548,7 +1548,7 @@ const InterviewDisplay = {
         
         // Key Quotes Section
         props.result.interviews[activeIndex.value]?.quotes?.length > 0 && h('div', { class: 'quotes-section' }, [
-          h('div', { class: 'quotes-header' }, 'Key Quotes'),
+          h('div', { class: 'quotes-header' }, t('step4x.keyQuotes')),
           h('div', { class: 'quotes-list' },
             props.result.interviews[activeIndex.value].quotes.slice(0, 3).map((quote, qi) => {
               const cleanedQuote = cleanQuoteText(quote)
@@ -1565,7 +1565,7 @@ const InterviewDisplay = {
 
       // Summary Section (Collapsible)
       props.result.summary && h('div', { class: 'summary-section' }, [
-        h('div', { class: 'summary-header' }, 'Interview Summary'),
+        h('div', { class: 'summary-header' }, t('step4x.interviewSummary')),
         h('div', { 
           class: 'summary-content',
           innerHTML: renderMarkdown(props.result.summary.length > 500 ? props.result.summary.substring(0, 500) + '...' : props.result.summary)
@@ -1601,11 +1601,11 @@ const QuickSearchDisplay = {
       // Header Section
       h('div', { class: 'quicksearch-header' }, [
         h('div', { class: 'header-main' }, [
-          h('div', { class: 'header-title' }, 'Quick Search'),
+          h('div', { class: 'header-title' }, t('step4x.quickSearch')),
           h('div', { class: 'header-stats' }, [
             h('span', { class: 'stat-item' }, [
               h('span', { class: 'stat-value' }, props.result.count || props.result.facts.length),
-              h('span', { class: 'stat-label' }, 'Results')
+              h('span', { class: 'stat-label' }, t('step4x.results'))
             ]),
             props.resultLength && h('span', { class: 'stat-divider' }, '·'),
             props.resultLength && h('span', { class: 'stat-size' }, formatSize(props.resultLength))
@@ -1710,9 +1710,9 @@ const statusClass = computed(() => {
 })
 
 const statusText = computed(() => {
-  if (isComplete.value) return 'Completed'
-  if (agentLogs.value.length > 0) return 'Generating...'
-  return 'Waiting'
+  if (isComplete.value) return t('step4x.statusCompleted')
+  if (agentLogs.value.length > 0) return t('step4x.statusGenerating')
+  return t('step4x.statusWaiting')
 })
 
 const totalSections = computed(() => {
@@ -1778,7 +1778,7 @@ const activeStep = computed(() => {
   if (doneSteps.length > 0) return doneSteps[doneSteps.length - 1]
 
   // Otherwise return first step
-  return steps[0] || { noLabel: '--', title: 'Waiting to start', status: 'todo', meta: '' }
+  return steps[0] || { noLabel: '--', title: t('step4x.waitingToStart'), status: 'todo', meta: '' }
 })
 
 const workflowSteps = computed(() => {
@@ -1789,9 +1789,9 @@ const workflowSteps = computed(() => {
   steps.push({
     key: 'planning',
     noLabel: 'PL',
-    title: 'Planning / Outline',
+    title: t('step4x.planningOutline'),
     status: planningStatus,
-    meta: planningStatus === 'active' ? 'IN PROGRESS' : ''
+    meta: planningStatus === 'active' ? t('step4x.inProgress') : ''
   })
 
   // Sections (if outline exists)
@@ -1807,7 +1807,7 @@ const workflowSteps = computed(() => {
       noLabel: String(idx).padStart(2, '0'),
       title: section.title,
       status,
-      meta: status === 'active' ? 'IN PROGRESS' : ''
+      meta: status === 'active' ? t('step4x.inProgress') : ''
     })
   })
 
@@ -1816,9 +1816,9 @@ const workflowSteps = computed(() => {
   steps.push({
     key: 'complete',
     noLabel: 'OK',
-    title: 'Complete',
+    title: t('step4x.complete'),
     status: completeStatus,
-    meta: completeStatus === 'active' ? 'FINALIZING' : ''
+    meta: completeStatus === 'active' ? t('step4x.finalizing') : ''
   })
 
   return steps
@@ -1993,16 +1993,16 @@ const getConnectorClass = (log, idx, total) => {
 
 const getActionLabel = (action) => {
   const labels = {
-    'report_start': 'Report Started',
-    'planning_start': 'Planning',
-    'planning_complete': 'Plan Complete',
-    'section_start': 'Section Start',
-    'section_content': 'Content Ready',
-    'section_complete': 'Section Done',
-    'tool_call': 'Tool Call',
-    'tool_result': 'Tool Result',
-    'llm_response': 'LLM Response',
-    'report_complete': 'Complete'
+    'report_start': t('step4x.actionReportStarted'),
+    'planning_start': t('step4x.actionPlanning'),
+    'planning_complete': t('step4x.actionPlanComplete'),
+    'section_start': t('step4x.actionSectionStart'),
+    'section_content': t('step4x.actionContentReady'),
+    'section_complete': t('step4x.actionSectionDone'),
+    'tool_call': t('step4x.actionToolCall'),
+    'tool_result': t('step4x.actionToolResult'),
+    'llm_response': t('step4x.actionLlmResponse'),
+    'report_complete': t('step4x.actionComplete')
   }
   return labels[action] || action
 }
@@ -2175,7 +2175,7 @@ const stopPolling = () => {
 // Lifecycle
 onMounted(() => {
   if (props.reportId) {
-    addLog(`Report Agent initialized: ${props.reportId}`)
+    addLog(t('step4x.reportAgentInitialized', { id: props.reportId }))
     startPolling()
   }
 })

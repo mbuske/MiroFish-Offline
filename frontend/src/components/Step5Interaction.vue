@@ -8,7 +8,7 @@
           <!-- Report Header -->
           <div class="report-header-block">
             <div class="report-meta">
-              <span class="report-tag">Prediction Report</span>
+              <span class="report-tag">{{ $t('step4x.predictionReport') }}</span>
               <span class="report-id">ID: {{ reportId || 'REF-2024-X92' }}</span>
             </div>
             <h1 class="main-title">{{ reportOutline.title }}</h1>
@@ -266,7 +266,7 @@
               <div class="message-content">
                 <div class="message-header">
                   <span class="sender-name">
-                    {{ msg.role === 'user' ? 'You' : (chatTarget === 'report_agent' ? 'Report Agent' : (selectedAgent?.username || 'Agent')) }}
+                    {{ msg.role === 'user' ? $t('step5x.you') : (chatTarget === 'report_agent' ? $t('step5x.reportAgent') : (selectedAgent?.username || $t('step5x.agent'))) }}
                   </span>
                   <span class="message-time">{{ formatTime(msg.timestamp) }}</span>
                 </div>
@@ -852,7 +852,7 @@ const submitSurvey = async () => {
 
         surveyResultsList.push({
           agent_id: agentIdx,
-          agent_name: agent?.username || `Agent ${agentIdx}`,
+          agent_name: agent?.username || t('step5x.agentN', { n: agentIdx }),
           profession: agent?.profession,
           question: surveyQuestion.value.trim(),
           answer: responseContent
