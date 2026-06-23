@@ -19,6 +19,7 @@ from openai import OpenAI
 
 from ..config import Config
 from ..utils.logger import get_logger
+from ..utils import get_locale, set_locale, get_language_instruction
 from .entity_reader import EntityNode
 from ..storage import GraphStorage
 
@@ -615,7 +616,13 @@ class OasisProfileGenerator:
     
     def _get_system_prompt(self, is_individual: bool) -> str:
         """Get system prompt"""
-        base_prompt = "You are an expert in generating social media user profiles. Generate detailed, realistic personas for opinion simulation that maximize restoration of existing reality. Must return valid JSON format with all string values containing no unescaped newlines. Use English."
+        base_prompt = (
+            "You are an expert in generating social media user profiles. "
+            "Generate detailed, realistic personas for opinion simulation that maximize restoration of existing reality. "
+            "Must return valid JSON format with all string values containing no unescaped newlines. "
+            f"{get_language_instruction()} Write the free-text fields (bio, persona) in that language. "
+            "JSON field names and the enum values for gender/country/mbti must stay in English."
+        )
         return base_prompt
     
     def _build_individual_persona_prompt(
@@ -662,7 +669,8 @@ Please generate JSON containing the following fields:
 Important:
 - All field values must be strings or numbers, do not use newlines
 - persona must be a coherent text description
-- Use English
+- {get_language_instruction()} Write bio and persona in that language
+- gender, country and mbti values must stay in English as specified above
 - Content must be consistent with entity information
 - age must be a valid integer, gender must be "male" or "female"
 """
@@ -711,7 +719,8 @@ Please generate JSON containing the following fields:
 Important:
 - All field values must be strings or numbers, no null values allowed
 - persona must be a coherent text description, do not use newlines
-- Use English
+- {get_language_instruction()} Write bio and persona in that language
+- gender and country values must stay in English as specified above
 - age must be integer 30, gender must be string "other"
 - Institutional account speech must match its identity positioning"""
     
@@ -819,7 +828,10 @@ Important:
         """
         import concurrent.futures
         from threading import Lock
-        
+
+        # Capture locale of the current thread so worker threads can inherit it
+        _locale = get_locale()
+
         # Set graph_id for knowledge graph search
         if graph_id:
             self.graph_id = graph_id
@@ -862,6 +874,7 @@ Important:
         
         def generate_single_profile(idx: int, entity: EntityNode) -> tuple:
             """Worker function to generate single profile"""
+            set_locale(_locale)
             entity_type = entity.get_entity_type() or "Entity"
 
             try:

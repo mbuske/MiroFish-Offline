@@ -15,6 +15,7 @@ from ..services.graph_builder import GraphBuilderService
 from ..services.text_processor import TextProcessor
 from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
+from ..utils import t, get_locale, set_locale
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
 
@@ -50,9 +51,9 @@ def get_project(project_id: str):
     if not project:
         return jsonify({
             "success": False,
-            "error": f"Project does not exist: {project_id}"
+            "error": t('api.projectNotFound', id=project_id)
         }), 404
-    
+
     return jsonify({
         "success": True,
         "data": project.to_dict()
@@ -84,12 +85,12 @@ def delete_project(project_id: str):
     if not success:
         return jsonify({
             "success": False,
-            "error": f"Project does not exist or deletion failed: {project_id}"
+            "error": t('api.projectDeleteFailed', id=project_id)
         }), 404
 
     return jsonify({
         "success": True,
-        "message": f"Project deleted: {project_id}"
+        "message": t('api.projectDeleted', id=project_id)
     })
 
 
@@ -103,7 +104,7 @@ def reset_project(project_id: str):
     if not project:
         return jsonify({
             "success": False,
-            "error": f"Project does not exist: {project_id}"
+            "error": t('api.projectNotFound', id=project_id)
         }), 404
 
     # Reset to ontology generated state
@@ -119,7 +120,7 @@ def reset_project(project_id: str):
 
     return jsonify({
         "success": True,
-        "message": f"Project reset: {project_id}",
+        "message": t('api.projectReset', id=project_id),
         "data": project.to_dict()
     })
 
@@ -168,7 +169,7 @@ def generate_ontology():
         if not simulation_requirement:
             return jsonify({
                 "success": False,
-                "error": "Please provide simulation requirement description (simulation_requirement)"
+                "error": t('api.requireSimulationRequirement')
             }), 400
 
         # Get uploaded files
@@ -176,7 +177,7 @@ def generate_ontology():
         if not uploaded_files or all(not f.filename for f in uploaded_files):
             return jsonify({
                 "success": False,
-                "error": "Please upload at least one document file"
+                "error": t('api.requireFileUpload')
             }), 400
 
         # Create project
@@ -211,7 +212,7 @@ def generate_ontology():
             ProjectManager.delete_project(project.project_id)
             return jsonify({
                 "success": False,
-                "error": "No documents successfully processed. Please check file format"
+                "error": t('api.noDocProcessed')
             }), 400
 
         # Save extracted text
@@ -298,7 +299,7 @@ def build_graph():
         if not project_id:
             return jsonify({
                 "success": False,
-                "error": "Please provide project_id"
+                "error": t('api.requireProjectId')
             }), 400
 
         # Get project
@@ -306,7 +307,7 @@ def build_graph():
         if not project:
             return jsonify({
                 "success": False,
-                "error": f"Project does not exist: {project_id}"
+                "error": t('api.projectNotFound', id=project_id)
             }), 404
 
         # Check project status
@@ -315,13 +316,13 @@ def build_graph():
         if project.status == ProjectStatus.CREATED:
             return jsonify({
                 "success": False,
-                "error": "Project has not generated ontology yet. Please call /ontology/generate first"
+                "error": t('api.ontologyNotGenerated')
             }), 400
 
         if project.status == ProjectStatus.GRAPH_BUILDING and not force:
             return jsonify({
                 "success": False,
-                "error": "Graph is being built. Do not submit repeatedly. To force rebuild, add force: true",
+                "error": t('api.graphBuilding'),
                 "task_id": project.graph_build_task_id
             }), 400
 
@@ -346,7 +347,7 @@ def build_graph():
         if not text:
             return jsonify({
                 "success": False,
-                "error": "Extracted text not found"
+                "error": t('api.textNotFound')
             }), 400
 
         # Get ontology
@@ -354,11 +355,14 @@ def build_graph():
         if not ontology:
             return jsonify({
                 "success": False,
-                "error": "Ontology definition not found"
+                "error": t('api.ontologyNotFound')
             }), 400
 
         # Get storage in request context (background thread cannot access current_app)
         storage = _get_storage()
+
+        # Capture locale in request context to propagate into the background thread
+        locale = get_locale()
 
         # Create async task
         task_manager = TaskManager()
@@ -372,13 +376,14 @@ def build_graph():
 
         # Start background task
         def build_task():
+            set_locale(locale)
             build_logger = get_logger('mirofish.build')
             try:
                 build_logger.info(f"[{task_id}] Starting graph build...")
                 task_manager.update_task(
                     task_id,
                     status=TaskStatus.PROCESSING,
-                    message="Initializing graph build service..."
+                    message=t('progress.initGraphService')
                 )
 
                 # Create graph builder service (storage passed from outer closure)
@@ -387,7 +392,7 @@ def build_graph():
                 # Chunk text
                 task_manager.update_task(
                     task_id,
-                    message="Chunking text...",
+                    message=t('progress.textChunking'),
                     progress=5
                 )
                 chunks = TextProcessor.split_text(
@@ -400,7 +405,7 @@ def build_graph():
                 # Create graph
                 task_manager.update_task(
                     task_id,
-                    message="Creating Zep graph...",
+                    message=t('progress.creatingZepGraph'),
                     progress=10
                 )
                 graph_id = builder.create_graph(name=graph_name)
@@ -412,7 +417,7 @@ def build_graph():
                 # Set ontology
                 task_manager.update_task(
                     task_id,
-                    message="Setting ontology definition...",
+                    message=t('progress.settingOntology'),
                     progress=15
                 )
                 builder.set_ontology(graph_id, ontology)
@@ -428,7 +433,7 @@ def build_graph():
 
                 task_manager.update_task(
                     task_id,
-                    message=f"Starting to add {total_chunks} text chunks...",
+                    message=t('progress.addingChunks', count=total_chunks),
                     progress=15
                 )
 
@@ -449,7 +454,7 @@ def build_graph():
                 # Get graph data
                 task_manager.update_task(
                     task_id,
-                    message="Retrieving graph data...",
+                    message=t('progress.fetchingGraphData'),
                     progress=95
                 )
                 graph_data = builder.get_graph_data(graph_id)
@@ -466,7 +471,7 @@ def build_graph():
                 task_manager.update_task(
                     task_id,
                     status=TaskStatus.COMPLETED,
-                    message="Graph build completed",
+                    message=t('progress.graphBuildComplete'),
                     progress=100,
                     result={
                         "project_id": project_id,
@@ -489,7 +494,7 @@ def build_graph():
                 task_manager.update_task(
                     task_id,
                     status=TaskStatus.FAILED,
-                    message=f"Build failed: {str(e)}",
+                    message=t('progress.buildFailed', error=str(e)),
                     error=traceback.format_exc()
                 )
 
@@ -502,7 +507,7 @@ def build_graph():
             "data": {
                 "project_id": project_id,
                 "task_id": task_id,
-                "message": "Graph build task started. Query progress via /task/{task_id}"
+                "message": t('api.graphBuildStarted', taskId=task_id)
             }
         })
         
@@ -526,7 +531,7 @@ def get_task(task_id: str):
     if not task:
         return jsonify({
             "success": False,
-            "error": f"Task does not exist: {task_id}"
+            "error": t('api.taskNotFound', id=task_id)
         }), 404
 
     return jsonify({
@@ -586,7 +591,7 @@ def delete_graph(graph_id: str):
 
         return jsonify({
             "success": True,
-            "message": f"Graph deleted: {graph_id}"
+            "message": t('api.graphDeleted', id=graph_id)
         })
 
     except Exception as e:

@@ -16,6 +16,7 @@ from ..models.project import ProjectManager
 from ..models.task import TaskManager, TaskStatus
 from ..services.graph_tools import GraphToolsService
 from ..utils.logger import get_logger
+from ..utils import t, get_locale, set_locale
 
 logger = get_logger('mirofish.api.report')
 
@@ -28,13 +29,13 @@ def generate_report():
         data = request.get_json() or {}
         simulation_id = data.get('simulation_id')
         if not simulation_id:
-            return jsonify({"success": False, "error": "Please provide simulation_id"}), 400
+            return jsonify({"success": False, "error": t('api.requireSimulationId')}), 400
 
         force_regenerate = data.get('force_regenerate', False)
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
         if not state:
-            return jsonify({"success": False, "error": f"Simulation does not exist: {simulation_id}"}), 404
+            return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
 
         if not force_regenerate:
             existing_report = ReportManager.get_report_by_simulation(simulation_id)
@@ -43,21 +44,21 @@ def generate_report():
                     "simulation_id": simulation_id,
                     "report_id": existing_report.report_id,
                     "status": "completed",
-                    "message": "Report already exists",
+                    "message": t('api.reportAlreadyExists'),
                     "already_generated": True
                 }})
 
         project = ProjectManager.get_project(state.project_id)
         if not project:
-            return jsonify({"success": False, "error": f"Project does not exist: {state.project_id}"}), 404
+            return jsonify({"success": False, "error": t('api.projectNotFound', id=state.project_id)}), 404
 
         graph_id = state.graph_id or project.graph_id
         if not graph_id:
-            return jsonify({"success": False, "error": "Missing graph ID, please ensure graph is built"}), 400
+            return jsonify({"success": False, "error": t('api.missingGraphIdEnsure')}), 400
 
         simulation_requirement = project.simulation_requirement
         if not simulation_requirement:
-            return jsonify({"success": False, "error": "Missing simulation requirement description"}), 400
+            return jsonify({"success": False, "error": t('api.missingSimRequirement')}), 400
 
         import uuid
         report_id = f"report_{uuid.uuid4().hex[:12]}"
@@ -75,9 +76,13 @@ def generate_report():
             return jsonify({"success": False, "error": "GraphStorage not initialized — check Neo4j connection"}), 500
         graph_tools = GraphToolsService(storage=storage)
 
+        # Capture locale in request context to propagate into the background thread
+        locale = get_locale()
+
         def run_generate():
+            set_locale(locale)
             try:
-                task_manager.update_task(task_id, status=TaskStatus.PROCESSING, progress=0, message="Initializing Report Agent...")
+                task_manager.update_task(task_id, status=TaskStatus.PROCESSING, progress=0, message=t('api.initReportAgent'))
                 agent = ReportAgent(
                     graph_id=graph_id,
                     simulation_id=simulation_id,
@@ -104,7 +109,7 @@ def generate_report():
             "report_id": report_id,
             "task_id": task_id,
             "status": "generating",
-            "message": "Report generation task started. Query progress via /api/report/generate/status",
+            "message": t('api.reportGenerateStarted'),
             "already_generated": False
         }})
 
@@ -128,17 +133,17 @@ def get_generate_status():
                     "report_id": existing_report.report_id,
                     "status": "completed",
                     "progress": 100,
-                    "message": "Report generated",
+                    "message": t('api.reportGenerated'),
                     "already_completed": True
                 }})
 
         if not task_id:
-            return jsonify({"success": False, "error": "Please provide task_id or simulation_id"}), 400
+            return jsonify({"success": False, "error": t('api.requireTaskOrSimId')}), 400
 
         task_manager = TaskManager()
         task = task_manager.get_task(task_id)
         if not task:
-            return jsonify({"success": False, "error": f"Task does not exist: {task_id}"}), 404
+            return jsonify({"success": False, "error": t('api.taskNotFound', id=task_id)}), 404
 
         return jsonify({"success": True, "data": task.to_dict()})
 
@@ -154,7 +159,7 @@ def get_report(report_id: str):
     try:
         report = ReportManager.get_report(report_id)
         if not report:
-            return jsonify({"success": False, "error": f"Report does not exist: {report_id}"}), 404
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         return jsonify({"success": True, "data": report.to_dict()})
     except Exception as e:
         logger.error(f"Failed to get report: {str(e)}")
@@ -166,7 +171,7 @@ def get_report_by_simulation(simulation_id: str):
     try:
         report = ReportManager.get_report_by_simulation(simulation_id)
         if not report:
-            return jsonify({"success": False, "error": f"No report available for this simulation: {simulation_id}", "has_report": False}), 404
+            return jsonify({"success": False, "error": t('api.noReportForSim', id=simulation_id), "has_report": False}), 404
         return jsonify({"success": True, "data": report.to_dict()})
     except Exception as e:
         logger.error(f"Failed to get report: {str(e)}")
@@ -190,7 +195,7 @@ def download_report(report_id: str):
     try:
         report = ReportManager.get_report(report_id)
         if not report:
-            return jsonify({"success": False, "error": f"Report does not exist: {report_id}"}), 404
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
 
         md_path = ReportManager._get_report_markdown_path(report_id)
         if not os.path.exists(md_path):
@@ -212,8 +217,8 @@ def delete_report(report_id: str):
     try:
         success = ReportManager.delete_report(report_id)
         if not success:
-            return jsonify({"success": False, "error": f"Report does not exist: {report_id}"}), 404
-        return jsonify({"success": True, "message": f"Report deleted: {report_id}"})
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
+        return jsonify({"success": True, "message": t('api.reportDeleted', id=report_id)})
     except Exception as e:
         logger.error(f"Failed to delete report: {str(e)}")
         return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
@@ -230,22 +235,22 @@ def chat_with_report_agent():
         chat_history = data.get('chat_history', [])
 
         if not simulation_id:
-            return jsonify({"success": False, "error": "Please provide simulation_id"}), 400
+            return jsonify({"success": False, "error": t('api.requireSimulationId')}), 400
         if not message:
-            return jsonify({"success": False, "error": "Please provide message"}), 400
+            return jsonify({"success": False, "error": t('api.requireMessage')}), 400
 
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
         if not state:
-            return jsonify({"success": False, "error": f"Simulation does not exist: {simulation_id}"}), 404
+            return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
 
         project = ProjectManager.get_project(state.project_id)
         if not project:
-            return jsonify({"success": False, "error": f"Project does not exist: {state.project_id}"}), 404
+            return jsonify({"success": False, "error": t('api.projectNotFound', id=state.project_id)}), 404
 
         graph_id = state.graph_id or project.graph_id
         if not graph_id:
-            return jsonify({"success": False, "error": "Missing graph ID"}), 400
+            return jsonify({"success": False, "error": t('api.missingGraphId')}), 400
 
         simulation_requirement = project.simulation_requirement or ""
 
@@ -276,7 +281,7 @@ def get_report_progress(report_id: str):
     try:
         progress = ReportManager.get_progress(report_id)
         if not progress:
-            return jsonify({"success": False, "error": f"Report does not exist or progress info unavailable: {report_id}"}), 404
+            return jsonify({"success": False, "error": t('api.reportProgressNotAvail', id=report_id)}), 404
         return jsonify({"success": True, "data": progress})
     except Exception as e:
         logger.error(f"Failed to get report progress: {str(e)}")
@@ -305,7 +310,7 @@ def get_single_section(report_id: str, section_index: int):
     try:
         section_path = ReportManager._get_section_path(report_id, section_index)
         if not os.path.exists(section_path):
-            return jsonify({"success": False, "error": f"Section does not exist: section_{section_index:02d}.md"}), 404
+            return jsonify({"success": False, "error": t('api.sectionNotFound', index=f"{section_index:02d}")}), 404
         with open(section_path, 'r', encoding='utf-8') as f:
             content = f.read()
         return jsonify({"success": True, "data": {"filename": f"section_{section_index:02d}.md", "content": content}})
@@ -392,7 +397,7 @@ def search_graph_tool():
         query = data.get('query')
         limit = data.get('limit', 10)
         if not graph_id or not query:
-            return jsonify({"success": False, "error": "Please provide graph_id and query"}), 400
+            return jsonify({"success": False, "error": t('api.requireGraphIdAndQuery')}), 400
         storage = current_app.extensions.get('neo4j_storage')
         if not storage:
             raise ValueError("GraphStorage not initialized — check Neo4j connection")
@@ -410,7 +415,7 @@ def get_graph_statistics_tool():
         data = request.get_json() or {}
         graph_id = data.get('graph_id')
         if not graph_id:
-            return jsonify({"success": False, "error": "Please provide graph_id"}), 400
+            return jsonify({"success": False, "error": t('api.requireGraphId')}), 400
         storage = current_app.extensions.get('neo4j_storage')
         if not storage:
             raise ValueError("GraphStorage not initialized — check Neo4j connection")
