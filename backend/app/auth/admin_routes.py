@@ -45,8 +45,10 @@ def set_role(user_id):
 @admin_bp.route("/users/<user_id>/active", methods=["POST"])
 @admin_required
 def set_active(user_id):
-    active = bool((request.get_json(silent=True) or {}).get("active"))
-    service.set_active(user_id, active)
+    d = request.get_json(silent=True) or {}
+    if "active" not in d:
+        return jsonify({"success": False, "error": "missing 'active'"}), 400
+    service.set_active(user_id, bool(d["active"]))
     return jsonify({"success": True})
 
 

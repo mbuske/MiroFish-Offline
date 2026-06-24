@@ -34,3 +34,26 @@ def test_admin_deactivates_user(admin_client):
                             json={"email": "n@x.de", "password": "pw12345"}).get_json()["user"]["id"]
     assert admin_client.post(f"/api/admin/users/{uid}/active",
                              json={"active": False}).status_code == 200
+
+
+def test_nonadmin_forbidden_on_admin_routes(tmp_path, monkeypatch):
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(Config, "API_TOKEN", "")
+    authdb.init_db(Config.AUTH_DB_PATH)
+    service.create_user("user@x.de", "pw12345", role="user")
+    app = Flask(__name__); app.config.from_object(Config)
+    app.register_blueprint(auth_bp); app.register_blueprint(admin_bp)
+    register_auth(app)
+    c = app.test_client()
+    c.post("/api/auth/login", json={"email": "user@x.de", "password": "pw12345"})
+    assert c.get("/api/admin/users").status_code == 403
+
+
+def test_unauthenticated_blocked_on_admin_routes(tmp_path, monkeypatch):
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(Config, "API_TOKEN", "")
+    authdb.init_db(Config.AUTH_DB_PATH)
+    app = Flask(__name__); app.config.from_object(Config)
+    app.register_blueprint(auth_bp); app.register_blueprint(admin_bp)
+    register_auth(app)
+    assert app.test_client().get("/api/admin/users").status_code in (401, 403)
