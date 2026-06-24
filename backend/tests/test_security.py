@@ -85,3 +85,10 @@ class TestCorsOrigins:
         origins = get_cors_origins("http://localhost:3000, https://app.example.com")
         assert "http://localhost:3000" in origins
         assert "https://app.example.com" in origins
+
+
+def test_auth_config_defaults():
+    from app.config import Config
+    assert Config.SESSION_COOKIE_NAME == "mf_session"
+    assert isinstance(Config.SESSION_TTL_DAYS, int)
+    assert isinstance(Config.BCRYPT_COST, int)
