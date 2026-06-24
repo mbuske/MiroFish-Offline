@@ -41,3 +41,24 @@ def test_login_endpoint_is_public(app):
     assert app.test_client().post(
         "/api/auth/login", json={"email": "a@b.de", "password": "pw12345"}
     ).status_code == 200
+
+
+def test_admin_required_blocks_non_admin(tmp_path, monkeypatch):
+    from app.auth.decorators import admin_required
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(Config, "API_TOKEN", "")
+    authdb.init_db(Config.AUTH_DB_PATH)
+    service.create_user("u@b.de", "pw12345")  # role=user
+    app = Flask(__name__)
+    app.config.from_object(Config)
+
+    @app.route("/api/admin/ping")
+    @admin_required
+    def ping():
+        return jsonify({"ok": True})
+
+    app.register_blueprint(auth_bp)
+    register_auth(app)
+    c = app.test_client()
+    c.post("/api/auth/login", json={"email": "u@b.de", "password": "pw12345"})
+    assert c.get("/api/admin/ping").status_code == 403
