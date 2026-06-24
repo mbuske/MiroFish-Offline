@@ -1,4 +1,5 @@
 import pytest
+from contextlib import contextmanager
 from flask import Flask, g
 from app.auth import ownership
 from app.auth.models import ROLE_ADMIN, ROLE_USER
@@ -9,11 +10,11 @@ class _U:
         self.id, self.role = uid, role
 
 
+@contextmanager
 def _ctx(app, user):
-    ctx = app.test_request_context()
-    ctx.push()
-    g.current_user = user
-    return ctx
+    with app.test_request_context():
+        g.current_user = user
+        yield
 
 
 def test_owner_can_access():
@@ -35,3 +36,18 @@ def test_require_raises_for_foreign():
     with _ctx(app, _U("u1", ROLE_USER)):
         with pytest.raises(PermissionError):
             ownership.require_owner_or_admin("u2")
+
+
+def test_nonadmin_denied_legacy_unowned():
+    app = Flask(__name__)
+    with _ctx(app, _U("u1", ROLE_USER)):
+        assert ownership.can_access(None) is False  # legacy/unowned → non-admin denied
+
+
+def test_anonymous_user_denied():
+    app = Flask(__name__)
+    with _ctx(app, None):                       # no authenticated user
+        assert ownership.can_access("u1") is False
+        assert ownership.can_access(None) is False
+        with pytest.raises(PermissionError):
+            ownership.require_owner_or_admin("u1")
