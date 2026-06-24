@@ -15,7 +15,18 @@ from ..services.simulation_manager import SimulationManager, SimulationStatus
 from ..services.simulation_runner import SimulationRunner, RunnerStatus
 from ..utils.logger import get_logger
 from ..utils import t, get_locale, set_locale
+from ..utils.validation import validate_simulation_id, safe_join
 from ..models.project import ProjectManager
+
+
+def _resolve_simulation_dir(simulation_id: str) -> str:
+    """Validate an untrusted simulation_id and return its confined data dir.
+
+    SECURITY: closes path traversal (CVE-2026-7059) at the API-layer sites that
+    build paths directly instead of going through SimulationManager.
+    """
+    validate_simulation_id(simulation_id)
+    return safe_join(Config.OASIS_SIMULATION_DATA_DIR, simulation_id)
 
 logger = get_logger('mirofish.api.simulation')
 
@@ -246,9 +257,12 @@ def _check_simulation_prepared(simulation_id: str) -> tuple:
     """
     import os
     from ..config import Config
-    
-    simulation_dir = os.path.join(Config.OASIS_SIMULATION_DATA_DIR, simulation_id)
-    
+
+    try:
+        simulation_dir = _resolve_simulation_dir(simulation_id)
+    except ValueError:
+        return False, {"reason": "Invalid simulation_id"}
+
     # Check if directory exists
     if not os.path.exists(simulation_dir):
         return False, {"reason": "Simulation directory does not exist"}
@@ -1056,10 +1070,13 @@ def get_simulation_profiles_realtime(simulation_id: str):
     
     try:
         platform = request.args.get('platform', 'reddit')
-        
-        # Get simulation directory
-        sim_dir = os.path.join(Config.OASIS_SIMULATION_DATA_DIR, simulation_id)
-        
+
+        # Get simulation directory (validated + confined)
+        try:
+            sim_dir = _resolve_simulation_dir(simulation_id)
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid simulation_id"}), 400
+
         if not os.path.exists(sim_dir):
             return jsonify({
                 "success": False,
@@ -1160,9 +1177,12 @@ def get_simulation_config_realtime(simulation_id: str):
     from datetime import datetime
     
     try:
-        # Get simulation directory
-        sim_dir = os.path.join(Config.OASIS_SIMULATION_DATA_DIR, simulation_id)
-        
+        # Get simulation directory (validated + confined)
+        try:
+            sim_dir = _resolve_simulation_dir(simulation_id)
+        except ValueError:
+            return jsonify({"success": False, "error": "Invalid simulation_id"}), 400
+
         if not os.path.exists(sim_dir):
             return jsonify({
                 "success": False,

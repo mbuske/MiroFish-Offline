@@ -39,8 +39,18 @@ def create_app(config_class=Config):
         logger.info("MiroFish-Offline Backend starting...")
         logger.info("=" * 50)
 
-    # Enable CORS
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    # Enable CORS — restricted to configured origins (no wildcard)
+    from .security import get_cors_origins, register_auth
+    cors_origins = get_cors_origins(Config.CORS_ORIGINS)
+    CORS(app, resources={r"/api/*": {"origins": cors_origins}})
+
+    # SECURITY: enforce API token on /api/* when configured (CVE-2026-7042)
+    if not Config.API_TOKEN and should_log_startup:
+        logger.warning(
+            "API_TOKEN is not set — the REST API is UNAUTHENTICATED. "
+            "Set API_TOKEN in .env before exposing this service to a network."
+        )
+    register_auth(app)
 
     # --- Initialize Neo4jStorage singleton (DI via app.extensions) ---
     from .storage import Neo4jStorage

@@ -22,7 +22,18 @@ class Config:
 
     # Flask configuration
     SECRET_KEY = os.environ.get('SECRET_KEY', 'mirofish-secret-key')
-    DEBUG = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
+    # SECURITY: debug defaults to OFF. Enabling it exposes the Werkzeug
+    # interactive debugger (RCE / PIN info-disclosure — CVE-2026-7041) when the
+    # server is network-reachable. Only set FLASK_DEBUG=true for local dev.
+    DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+
+    # SECURITY: optional API auth token (CVE-2026-7042 — missing authentication).
+    # When set, every /api/* request must present it via
+    # `Authorization: Bearer <token>` or `X-API-Key`. Empty = open (localhost).
+    API_TOKEN = os.environ.get('API_TOKEN', '')
+
+    # SECURITY: allowed CORS origins (comma-separated). Replaces wildcard '*'.
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '')
 
     # JSON configuration - disable ASCII escaping to display Chinese directly (not as \uXXXX)
     JSON_AS_ASCII = False
