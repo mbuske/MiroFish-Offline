@@ -117,3 +117,29 @@ def test_set_role_and_reset_password(tmp_path):
     assert service.verify_password("newpw99", service.get_user(uid).password_hash)
     with pytest.raises(ValueError):
         service.set_role(uid, "superuser")
+
+
+def test_count_admins_counts_active_admins_only(tmp_path):
+    authdb.init_db(str(tmp_path / "auth.db"))
+    a1 = service.create_user("a1@x.de", "pw", role="admin")
+    service.create_user("u1@x.de", "pw", role="user")
+    a2 = service.create_user("a2@x.de", "pw", role="admin")
+    assert service.count_admins() == 2
+    service.set_active(a2, False)            # deactivated admin must not count
+    assert service.count_admins() == 1
+
+
+def test_list_users_returns_all_ordered(tmp_path):
+    authdb.init_db(str(tmp_path / "auth.db"))
+    service.create_user("a@x.de", "pw")
+    service.create_user("b@x.de", "pw")
+    emails = [u.email for u in service.list_users()]
+    assert set(emails) == {"a@x.de", "b@x.de"}
+
+
+def test_admin_ops_raise_for_missing_user(tmp_path):
+    authdb.init_db(str(tmp_path / "auth.db"))
+    with pytest.raises(ValueError):
+        service.set_role("nope", "admin")
+    with pytest.raises(ValueError):
+        service.reset_password("nope", "newpw")
