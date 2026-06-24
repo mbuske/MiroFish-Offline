@@ -1,8 +1,9 @@
 import os
+import pytest
 from datetime import datetime, timedelta
 from app.auth import db as authdb
 from app.auth import service
-from app.auth.models import User, UserSession, ROLE_ADMIN
+from app.auth.models import User, UserSession, ROLE_ADMIN, ROLE_USER
 
 
 def test_init_db_creates_tables(tmp_path):
@@ -36,3 +37,21 @@ def test_hash_and_verify_password():
     assert h != "s3cret"
     assert service.verify_password("s3cret", h) is True
     assert service.verify_password("wrong", h) is False
+
+
+def test_create_user_and_duplicate(tmp_path):
+    authdb.init_db(str(tmp_path / "auth.db"))
+    uid = service.create_user("x@y.de", "pw12345", name="X")
+    assert isinstance(uid, str)
+    fetched = service.get_user_by_email("x@y.de")
+    assert fetched.id == uid and fetched.role == "user"
+    with pytest.raises(ValueError):
+        service.create_user("x@y.de", "other")
+
+
+def test_create_user_rejects_empty(tmp_path):
+    authdb.init_db(str(tmp_path / "auth.db"))
+    with pytest.raises(ValueError):
+        service.create_user("", "pw")
+    with pytest.raises(ValueError):
+        service.create_user("a@b.de", "")
