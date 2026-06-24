@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta
 from app.auth import db as authdb
+from app.auth import service
 from app.auth.models import User, UserSession, ROLE_ADMIN
 
 
@@ -28,3 +29,10 @@ def test_user_and_session_persist(tmp_path):
     with authdb.session_scope() as s:
         assert s.query(User).filter_by(email="a@b.de").one().role == "admin"
         assert s.query(UserSession).filter_by(user_id="u1").count() == 1
+
+
+def test_hash_and_verify_password():
+    h = service.hash_password("s3cret")
+    assert h != "s3cret"
+    assert service.verify_password("s3cret", h) is True
+    assert service.verify_password("wrong", h) is False
