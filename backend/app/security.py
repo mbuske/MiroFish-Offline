@@ -45,23 +45,32 @@ def _extract_token() -> str | None:
 
 
 def register_auth(app) -> None:
-    """Install a before_request hook enforcing API_TOKEN on /api/* routes."""
+    """Resolve the session cookie into g.current_user and enforce auth on /api/*."""
+    from flask import g
+    from .auth import service
+    from .config import Config
 
     @app.before_request
-    def _require_token():
-        configured = app.config.get("API_TOKEN") or ""
-        if not configured:
-            # Hardening is opt-in; without a token the app stays open.
-            return None
+    def _auth():
+        g.current_user = None
+        # 1) Resolve a server-side session from the cookie (if any).
+        token = request.cookies.get(Config.SESSION_COOKIE_NAME)
+        if token:
+            g.current_user = service.resolve_session(token)
+
         if request.method == "OPTIONS":
-            return None  # let CORS preflight through
+            return None
         if not request.path.startswith("/api/"):
             return None
-        if request.path in _AUTH_EXEMPT_PATHS:
+        if request.path in _AUTH_EXEMPT_PATHS or request.path == "/api/auth/login":
             return None
 
-        provided = _extract_token() or ""
-        # Constant-time comparison to avoid timing oracles.
-        if not provided or not hmac.compare_digest(provided, configured):
+        # 2) Accept the optional static machine token as an alternative.
+        configured = app.config.get("API_TOKEN") or ""
+        if configured and _extract_token() and hmac.compare_digest(_extract_token(), configured):
+            return None
+
+        # 3) Otherwise require an authenticated user.
+        if g.current_user is None:
             return jsonify({"success": False, "error": "Unauthorized"}), 401
         return None
