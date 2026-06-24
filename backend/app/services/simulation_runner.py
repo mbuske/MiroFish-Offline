@@ -20,6 +20,7 @@ from queue import Queue
 
 from ..config import Config
 from ..utils.logger import get_logger
+from ..utils.validation import validate_simulation_id, safe_join
 from .graph_memory_updater import GraphMemoryManager
 from .simulation_ipc import SimulationIPCClient, CommandType, IPCResponse
 
@@ -215,6 +216,17 @@ class SimulationRunner:
         '../../scripts'
     )
     
+    @classmethod
+    def _sim_state_dir(cls, simulation_id: str) -> str:
+        """Validate an untrusted simulation_id and return its confined run-state dir.
+
+        SECURITY: this is the base for the file-based IPC command/response dirs,
+        so validating + confining it here closes the IPC command-injection and
+        path-traversal vectors (unvalidated simulation_id).
+        """
+        validate_simulation_id(simulation_id)
+        return safe_join(cls.RUN_STATE_DIR, simulation_id)
+
     # In-memory run state
     _run_states: Dict[str, SimulationRunState] = {}
     _processes: Dict[str, subprocess.Popen] = {}
@@ -241,7 +253,7 @@ class SimulationRunner:
     @classmethod
     def _load_run_state(cls, simulation_id: str) -> Optional[SimulationRunState]:
         """Load run state from file"""
-        state_file = os.path.join(cls.RUN_STATE_DIR, simulation_id, "run_state.json")
+        state_file = os.path.join(cls._sim_state_dir(simulation_id), "run_state.json")
         if not os.path.exists(state_file):
             return None
         
@@ -297,7 +309,7 @@ class SimulationRunner:
     @classmethod
     def _save_run_state(cls, state: SimulationRunState):
         """Save run state to file"""
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, state.simulation_id)
+        sim_dir = cls._sim_state_dir(state.simulation_id)
         os.makedirs(sim_dir, exist_ok=True)
         state_file = os.path.join(sim_dir, "run_state.json")
         
@@ -337,7 +349,7 @@ class SimulationRunner:
             raise ValueError(f"Simulation already running: {simulation_id}")
         
         # Load simulation config
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        sim_dir = cls._sim_state_dir(simulation_id)
         config_path = os.path.join(sim_dir, "simulation_config.json")
         
         if not os.path.exists(config_path):
@@ -480,7 +492,7 @@ class SimulationRunner:
     @classmethod
     def _monitor_simulation(cls, simulation_id: str):
         """Monitor simulation process and parse action logs"""
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        sim_dir = cls._sim_state_dir(simulation_id)
         
         # New log structure: per-platform action logs
         twitter_actions_log = os.path.join(sim_dir, "twitter", "actions.jsonl")
@@ -698,7 +710,7 @@ class SimulationRunner:
         Returns:
             True if all enabled platforms are completed
         """
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, state.simulation_id)
+        sim_dir = cls._sim_state_dir(state.simulation_id)
         twitter_log = os.path.join(sim_dir, "twitter", "actions.jsonl")
         reddit_log = os.path.join(sim_dir, "reddit", "actions.jsonl")
         
@@ -908,7 +920,7 @@ class SimulationRunner:
         Returns:
             Complete action list (sorted by timestamp, newest first)
         """
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        sim_dir = cls._sim_state_dir(simulation_id)
         actions = []
         
         # Read Twitter action file (auto-set platform to twitter based on file path)
@@ -1122,7 +1134,7 @@ class SimulationRunner:
         """
         import shutil
         
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        sim_dir = cls._sim_state_dir(simulation_id)
         
         if not os.path.exists(sim_dir):
             return {"success": True, "message": "Simulation directory does not exist, no cleanup needed"}
@@ -1240,7 +1252,7 @@ class SimulationRunner:
                     
                     # Also update state.json, set status to stopped
                     try:
-                        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+                        sim_dir = cls._sim_state_dir(simulation_id)
                         state_file = os.path.join(sim_dir, "state.json")
                         logger.info(f"Attempting to update state.json: {state_file}")
                         if os.path.exists(state_file):
@@ -1379,7 +1391,7 @@ class SimulationRunner:
         Returns:
             True means environment is alive, False means environment is closed
         """
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        sim_dir = cls._sim_state_dir(simulation_id)
         if not os.path.exists(sim_dir):
             return False
 
@@ -1397,7 +1409,7 @@ class SimulationRunner:
         Returns:
             Status details dict, contains status, twitter_available, reddit_available, timestamp
         """
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        sim_dir = cls._sim_state_dir(simulation_id)
         status_file = os.path.join(sim_dir, "env_status.json")
         
         default_status = {
@@ -1451,7 +1463,7 @@ class SimulationRunner:
             ValueError: Simulation does not exist or environment not running
             TimeoutError: Timeout waiting for response
         """
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        sim_dir = cls._sim_state_dir(simulation_id)
         if not os.path.exists(sim_dir):
             raise ValueError(f"Simulation does not exist: {simulation_id}")
 
@@ -1513,7 +1525,7 @@ class SimulationRunner:
             ValueError: Simulation does not exist or environment not running
             TimeoutError: Timeout waiting for response
         """
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        sim_dir = cls._sim_state_dir(simulation_id)
         if not os.path.exists(sim_dir):
             raise ValueError(f"Simulation does not exist: {simulation_id}")
 
@@ -1570,7 +1582,7 @@ class SimulationRunner:
         Returns:
             Global interview result dict
         """
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        sim_dir = cls._sim_state_dir(simulation_id)
         if not os.path.exists(sim_dir):
             raise ValueError(f"Simulation does not exist: {simulation_id}")
 
@@ -1623,7 +1635,7 @@ class SimulationRunner:
         Returns:
             Operation result dict
         """
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        sim_dir = cls._sim_state_dir(simulation_id)
         if not os.path.exists(sim_dir):
             raise ValueError(f"Simulation does not exist: {simulation_id}")
         
@@ -1734,7 +1746,7 @@ class SimulationRunner:
         Returns:
             Interview history records list
         """
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        sim_dir = cls._sim_state_dir(simulation_id)
         
         results = []
         

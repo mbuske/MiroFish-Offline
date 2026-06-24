@@ -14,6 +14,7 @@ from enum import Enum
 
 from ..config import Config
 from ..utils.logger import get_logger
+from ..utils.validation import validate_simulation_id, validate_platform, safe_join
 from .entity_reader import EntityReader, FilteredEntities
 from .oasis_profile_generator import OasisProfileGenerator, OasisAgentProfile
 from .simulation_config_generator import SimulationConfigGenerator, SimulationParameters
@@ -136,8 +137,15 @@ class SimulationManager:
         self._simulations: Dict[str, SimulationState] = {}
     
     def _get_simulation_dir(self, simulation_id: str) -> str:
-        """Get simulation data directory"""
-        sim_dir = os.path.join(self.SIMULATION_DATA_DIR, simulation_id)
+        """Get simulation data directory.
+
+        SECURITY: validate the id and confine the result to SIMULATION_DATA_DIR.
+        This is the single chokepoint for every simulation path (state files,
+        profiles, and the file-based IPC command/response dirs), so guarding it
+        here closes the path-traversal (CVE-2026-7059) and IPC-injection vectors.
+        """
+        validate_simulation_id(simulation_id)
+        sim_dir = safe_join(self.SIMULATION_DATA_DIR, simulation_id)
         os.makedirs(sim_dir, exist_ok=True)
         return sim_dir
     
@@ -472,7 +480,14 @@ class SimulationManager:
                 sim_path = os.path.join(self.SIMULATION_DATA_DIR, sim_id)
                 if sim_id.startswith('.') or not os.path.isdir(sim_path):
                     continue
-                
+
+                # Skip directories whose names are not valid simulation ids
+                # (stray/legacy dirs) so listing never crashes on them.
+                try:
+                    validate_simulation_id(sim_id)
+                except ValueError:
+                    continue
+
                 state = self._load_simulation_state(sim_id)
                 if state:
                     if project_id is None or state.project_id == project_id:
@@ -482,10 +497,12 @@ class SimulationManager:
     
     def get_profiles(self, simulation_id: str, platform: str = "reddit") -> List[Dict[str, Any]]:
         """Get Agent Profiles for simulation"""
+        # SECURITY: reject unsafe platform before any filesystem access (CVE-2026-7059)
+        validate_platform(platform)
         state = self._load_simulation_state(simulation_id)
         if not state:
             raise ValueError(f"Simulation does not exist: {simulation_id}")
-        
+
         sim_dir = self._get_simulation_dir(simulation_id)
         profile_path = os.path.join(sim_dir, f"{platform}_profiles.json")
         

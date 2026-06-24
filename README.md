@@ -127,7 +127,9 @@ EMBEDDING_MODEL=nomic-embed-text
 EMBEDDING_BASE_URL=http://localhost:11434
 ```
 
-Works with any OpenAI-compatible API — swap Ollama for Claude, GPT, or any other provider by changing `LLM_BASE_URL` and `LLM_API_KEY`.
+Works with any OpenAI-compatible API — swap Ollama for Claude, GPT, or any other provider by changing `LLM_BASE_URL` and `LLM_API_KEY`. For fully-local, fully-remote, and hybrid (remote LLM + local embeddings) setups — plus Docker service-name overrides and ontology-500 troubleshooting — see [`docs/llm-configuration.md`](docs/llm-configuration.md).
+
+The UI and reports are **bilingual (German / English)**; see [`docs/i18n.md`](docs/i18n.md). Full engineering docs live in [`docs/`](docs/README.md).
 
 ## Architecture
 

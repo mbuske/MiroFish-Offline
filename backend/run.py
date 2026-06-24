@@ -37,7 +37,9 @@ def main():
     app = create_app()
 
     # Get runtime configuration
-    host = os.environ.get('FLASK_HOST', '0.0.0.0')
+    # SECURITY: bind to loopback by default. Set FLASK_HOST=0.0.0.0 to expose on
+    # a network — only do so with API_TOKEN set and FLASK_DEBUG off.
+    host = os.environ.get('FLASK_HOST', '127.0.0.1')
     port = int(os.environ.get('FLASK_PORT', 5001))
     debug = Config.DEBUG
 
