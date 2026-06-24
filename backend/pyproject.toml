@@ -45,6 +45,11 @@ dev = [
     "pipreqs>=0.5.0",
 ]
 
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:datetime.datetime.utcnow:DeprecationWarning",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
