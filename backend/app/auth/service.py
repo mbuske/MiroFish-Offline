@@ -103,3 +103,49 @@ def revoke_session(token):
 def revoke_user_sessions(user_id):
     with authdb.session_scope() as s:
         return s.query(UserSession).filter_by(user_id=user_id).delete()
+
+
+def set_role(user_id, role):
+    if role not in (ROLE_ADMIN, ROLE_USER):
+        raise ValueError("invalid role")
+    with authdb.session_scope() as s:
+        u = s.query(User).filter_by(id=user_id).first()
+        if not u:
+            raise ValueError("no such user")
+        u.role = role
+        u.updated_at = datetime.utcnow()
+
+
+def set_active(user_id, active):
+    with authdb.session_scope() as s:
+        u = s.query(User).filter_by(id=user_id).first()
+        if not u:
+            raise ValueError("no such user")
+        u.is_active = bool(active)
+        u.updated_at = datetime.utcnow()
+    if not active:
+        revoke_user_sessions(user_id)
+
+
+def reset_password(user_id, new_password):
+    if not new_password:
+        raise ValueError("password required")
+    with authdb.session_scope() as s:
+        u = s.query(User).filter_by(id=user_id).first()
+        if not u:
+            raise ValueError("no such user")
+        u.password_hash = hash_password(new_password)
+        u.updated_at = datetime.utcnow()
+
+
+def list_users():
+    with authdb.session_scope() as s:
+        users = s.query(User).order_by(User.created_at).all()
+        for u in users:
+            s.expunge(u)
+        return users
+
+
+def count_admins():
+    with authdb.session_scope() as s:
+        return s.query(User).filter_by(role=ROLE_ADMIN, is_active=True).count()

@@ -98,3 +98,22 @@ def test_expired_session_rejected(tmp_path):
             token_hash=service._hash_token(token)).one()
         row.expires_at = datetime.utcnow() - timedelta(seconds=1)
     assert service.resolve_session(token) is None
+
+
+def test_deactivate_revokes_sessions(tmp_path):
+    authdb.init_db(str(tmp_path / "auth.db"))
+    uid = service.create_user("a@b.de", "pw")
+    token = service.start_session(uid)
+    service.set_active(uid, False)
+    assert service.resolve_session(token) is None
+
+
+def test_set_role_and_reset_password(tmp_path):
+    authdb.init_db(str(tmp_path / "auth.db"))
+    uid = service.create_user("a@b.de", "pw")
+    service.set_role(uid, ROLE_ADMIN)
+    assert service.get_user(uid).role == "admin"
+    service.reset_password(uid, "newpw99")
+    assert service.verify_password("newpw99", service.get_user(uid).password_hash)
+    with pytest.raises(ValueError):
+        service.set_role(uid, "superuser")
