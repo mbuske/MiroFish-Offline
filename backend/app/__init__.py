@@ -39,10 +39,23 @@ def create_app(config_class=Config):
         logger.info("MiroFish-Offline Backend starting...")
         logger.info("=" * 50)
 
-    # Enable CORS — restricted to configured origins (no wildcard)
+    # Enable CORS — restricted to configured origins, WITH credentials (cookies)
     from .security import get_cors_origins, register_auth
     cors_origins = get_cors_origins(Config.CORS_ORIGINS)
-    CORS(app, resources={r"/api/*": {"origins": cors_origins}})
+    CORS(app, resources={r"/api/*": {"origins": cors_origins}},
+         supports_credentials=True)
+
+    # --- Auth store: init DB, seed admin, register auth blueprints ---
+    from .auth.db import init_db
+    from .auth.seed import seed_admin_from_env
+    from .auth.routes import auth_bp
+    # admin_bp registered in a later task (admin user-management API)
+    init_db(Config.AUTH_DB_PATH)
+    app.register_blueprint(auth_bp)
+    try:
+        seed_admin_from_env()
+    except Exception as e:
+        logger.error("Admin seeding failed: %s", e)
 
     # SECURITY: enforce API token on /api/* when configured (CVE-2026-7042)
     if not Config.API_TOKEN and should_log_startup:

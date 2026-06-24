@@ -16,35 +16,29 @@ def _first_api_get_path(app):
 
 
 @pytest.fixture
-def token_app(monkeypatch):
-    # Avoid blocking on a real Neo4j connection during init; create_app handles
-    # storage init failure gracefully (stores None). Auth runs regardless.
+def token_app(monkeypatch, tmp_path):
     import app.storage as storage_mod
+    from app.auth import db as authdb, service
 
-    def _boom(*args, **kwargs):
+    def _boom(*a, **k):
         raise RuntimeError("no neo4j in test")
-
     monkeypatch.setattr(storage_mod, "Neo4jStorage", _boom)
-    monkeypatch.setattr(Config, "API_TOKEN", "itest-token", raising=False)
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(Config, "ADMIN_EMAIL", "admin@x.de")
+    monkeypatch.setattr(Config, "ADMIN_PASSWORD", "adminpw")
     app = create_app()
-    app.config["API_TOKEN"] = "itest-token"
     return app
 
 
-def test_api_blocked_without_token(token_app):
+def test_api_blocked_without_login(token_app):
     path = _first_api_get_path(token_app)
-    assert path is not None, "expected at least one no-arg GET /api route"
-    resp = token_app.test_client().get(path)
-    assert resp.status_code == 401
+    assert token_app.test_client().get(path).status_code == 401
 
 
-def test_api_passes_auth_with_token(token_app):
-    path = _first_api_get_path(token_app)
-    resp = token_app.test_client().get(
-        path, headers={"Authorization": "Bearer itest-token"}
-    )
-    # Auth passed -> not 401 (view may still 4xx/5xx for other reasons).
-    assert resp.status_code != 401
+def test_api_passes_after_login(token_app):
+    c = token_app.test_client()
+    c.post("/api/auth/login", json={"email": "admin@x.de", "password": "adminpw"})
+    assert c.get(_first_api_get_path(token_app)).status_code != 401
 
 
 def test_health_open_even_with_token(token_app):
