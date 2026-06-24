@@ -55,3 +55,36 @@ def test_create_user_rejects_empty(tmp_path):
         service.create_user("", "pw")
     with pytest.raises(ValueError):
         service.create_user("a@b.de", "")
+
+
+def _setup(tmp_path):
+    authdb.init_db(str(tmp_path / "auth.db"))
+    return service.create_user("a@b.de", "pw")
+
+
+def test_start_and_resolve_session(tmp_path):
+    uid = _setup(tmp_path)
+    token = service.start_session(uid)
+    assert service.resolve_session(token).id == uid
+
+
+def test_resolve_rejects_unknown(tmp_path):
+    _setup(tmp_path)
+    assert service.resolve_session("nope") is None
+
+
+def test_revoke_session(tmp_path):
+    uid = _setup(tmp_path)
+    token = service.start_session(uid)
+    service.revoke_session(token)
+    assert service.resolve_session(token) is None
+
+
+def test_expired_session_rejected(tmp_path):
+    uid = _setup(tmp_path)
+    token = service.start_session(uid)
+    with authdb.session_scope() as s:
+        row = s.query(UserSession).filter_by(
+            token_hash=service._hash_token(token)).one()
+        row.expires_at = datetime.utcnow() - timedelta(seconds=1)
+    assert service.resolve_session(token) is None

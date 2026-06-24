@@ -62,3 +62,44 @@ def get_user(user_id):
         if u:
             s.expunge(u)
         return u
+
+
+def _hash_token(token):
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def start_session(user_id, ttl_days=7, user_agent=None, ip=None):
+    token = secrets.token_urlsafe(32)
+    now = datetime.utcnow()
+    with authdb.session_scope() as s:
+        s.add(UserSession(id=str(uuid.uuid4()), token_hash=_hash_token(token),
+                          user_id=user_id, created_at=now,
+                          expires_at=now + timedelta(days=ttl_days),
+                          last_used_at=now, user_agent=user_agent, ip=ip))
+    return token
+
+
+def resolve_session(token):
+    if not token:
+        return None
+    now = datetime.utcnow()
+    with authdb.session_scope() as s:
+        row = s.query(UserSession).filter_by(token_hash=_hash_token(token)).first()
+        if not row or row.expires_at < now:
+            return None
+        user = s.query(User).filter_by(id=row.user_id).first()
+        if not user or not user.is_active:
+            return None
+        row.last_used_at = now
+        s.expunge(user)
+        return user
+
+
+def revoke_session(token):
+    with authdb.session_scope() as s:
+        s.query(UserSession).filter_by(token_hash=_hash_token(token)).delete()
+
+
+def revoke_user_sessions(user_id):
+    with authdb.session_scope() as s:
+        return s.query(UserSession).filter_by(user_id=user_id).delete()
