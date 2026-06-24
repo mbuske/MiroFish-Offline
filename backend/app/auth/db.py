@@ -17,7 +17,6 @@ def get_engine(db_path):
     _engine = create_engine(
         f"sqlite:///{db_path}",
         connect_args={"check_same_thread": False},
-        future=True,
     )
     SessionLocal.configure(bind=_engine)
     return _engine
