@@ -44,7 +44,12 @@ def logout():
     if token:
         service.revoke_session(token)
     resp = jsonify({"success": True})
-    resp.delete_cookie(Config.SESSION_COOKIE_NAME, path="/")
+    resp.set_cookie(
+        Config.SESSION_COOKIE_NAME, "", max_age=0, expires=0,
+        httponly=True, samesite="Lax",
+        secure=not current_app.config.get("DEBUG", False),
+        path="/",
+    )
     return resp
 
 

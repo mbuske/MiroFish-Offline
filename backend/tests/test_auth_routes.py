@@ -22,6 +22,9 @@ def test_login_success_sets_cookie(client):
     assert r.get_json()["user"]["email"] == "a@b.de"
     assert "mf_session" in r.headers.get("Set-Cookie", "")
     assert "HttpOnly" in r.headers.get("Set-Cookie", "")
+    cookie = r.headers.get("Set-Cookie", "")
+    assert "SameSite=Lax" in cookie
+    assert "Max-Age=" in cookie
 
 
 def test_login_bad_password_generic_401(client):
@@ -34,3 +37,12 @@ def test_login_bad_password_generic_401(client):
 def test_login_unknown_user_same_401(client):
     r = client.post("/api/auth/login", json={"email": "no@b.de", "password": "x"})
     assert r.status_code == 401
+    assert r.get_json().get("error") == "Invalid credentials"
+
+
+def test_login_inactive_user_generic_401(client):
+    uid = service.get_user_by_email("a@b.de").id
+    service.set_active(uid, False)
+    r = client.post("/api/auth/login", json={"email": "a@b.de", "password": "pw12345"})
+    assert r.status_code == 401
+    assert r.get_json().get("error") == "Invalid credentials"
