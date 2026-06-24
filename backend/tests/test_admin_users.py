@@ -1,0 +1,36 @@
+import pytest
+from flask import Flask
+from app.auth import db as authdb, service
+from app.auth.routes import auth_bp
+from app.auth.admin_routes import admin_bp
+from app.security import register_auth
+from app.config import Config
+
+
+@pytest.fixture
+def admin_client(tmp_path, monkeypatch):
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(Config, "API_TOKEN", "")
+    authdb.init_db(Config.AUTH_DB_PATH)
+    service.create_user("admin@x.de", "adminpw", role="admin")
+    app = Flask(__name__); app.config.from_object(Config)
+    app.register_blueprint(auth_bp); app.register_blueprint(admin_bp)
+    register_auth(app)
+    c = app.test_client()
+    c.post("/api/auth/login", json={"email": "admin@x.de", "password": "adminpw"})
+    return c
+
+
+def test_admin_creates_and_lists_users(admin_client):
+    r = admin_client.post("/api/admin/users",
+                          json={"email": "new@x.de", "password": "pw12345", "name": "New"})
+    assert r.status_code == 201
+    users = admin_client.get("/api/admin/users").get_json()["users"]
+    assert any(u["email"] == "new@x.de" for u in users)
+
+
+def test_admin_deactivates_user(admin_client):
+    uid = admin_client.post("/api/admin/users",
+                            json={"email": "n@x.de", "password": "pw12345"}).get_json()["user"]["id"]
+    assert admin_client.post(f"/api/admin/users/{uid}/active",
+                             json={"active": False}).status_code == 200
