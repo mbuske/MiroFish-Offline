@@ -80,6 +80,16 @@ def test_revoke_session(tmp_path):
     assert service.resolve_session(token) is None
 
 
+def test_revoke_user_sessions(tmp_path):
+    uid = _setup(tmp_path)
+    t1 = service.start_session(uid)
+    t2 = service.start_session(uid)
+    count = service.revoke_user_sessions(uid)
+    assert count == 2
+    assert service.resolve_session(t1) is None
+    assert service.resolve_session(t2) is None
+
+
 def test_expired_session_rejected(tmp_path):
     uid = _setup(tmp_path)
     token = service.start_session(uid)
