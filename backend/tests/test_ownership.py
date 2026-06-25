@@ -325,3 +325,30 @@ def test_get_graph_owner_returns_none_for_legacy(monkeypatch):
     st._driver = FakeDriver()
     result = st.get_graph_owner("g_legacy")
     assert result is None
+
+
+def test_account_access_helpers():
+    from flask import Flask, g
+    from app.auth import accounts
+    from app.auth.models import ROLE_SUPERADMIN, ROLE_ACCOUNT_ADMIN, ROLE_USER
+    import pytest
+
+    class _U:
+        def __init__(self, role, account_id):
+            self.role, self.account_id = role, account_id
+
+    app = Flask(__name__)
+    with app.test_request_context():
+        g.current_user = _U(ROLE_USER, "accA")
+        assert accounts.can_access_account("accA") is True
+        assert accounts.can_access_account("accB") is False
+        assert accounts.can_access_account(None) is False
+        with pytest.raises(PermissionError):
+            accounts.require_account_access("accB")
+    with app.test_request_context():
+        g.current_user = _U(ROLE_SUPERADMIN, None)
+        assert accounts.can_access_account("accB") is True
+        assert accounts.is_superadmin() is True
+    with app.test_request_context():
+        g.current_user = None
+        assert accounts.can_access_account("accA") is False
