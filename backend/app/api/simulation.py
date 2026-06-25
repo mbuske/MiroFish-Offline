@@ -695,7 +695,24 @@ def get_prepare_status():
         
         task_id = data.get('task_id')
         simulation_id = data.get('simulation_id')
-        
+
+        # Ownership check when simulation_id is provided (hard pattern: 404 for both missing and forbidden)
+        if simulation_id:
+            _mgr = SimulationManager()
+            _state = _mgr.get_simulation(simulation_id)
+            if not _state:
+                return jsonify({
+                    "success": False,
+                    "error": t('api.simulationNotFound', id=simulation_id)
+                }), 404
+            try:
+                require_owner_or_admin(_state.owner_id)
+            except PermissionError:
+                return jsonify({
+                    "success": False,
+                    "error": t('api.simulationNotFound', id=simulation_id)
+                }), 404
+
         # If simulation_id is provided, check if preparation is complete
         if simulation_id:
             is_prepared, prepare_info = _check_simulation_prepared(simulation_id)
@@ -1123,17 +1140,21 @@ def get_simulation_profiles_realtime(simulation_id: str):
                 "error": t('api.simulationNotFound', id=simulation_id)
             }), 404
 
-        # Ownership check
+        # Ownership check (hard pattern: 404 for both missing and forbidden)
         _mgr = SimulationManager()
         _state = _mgr.get_simulation(simulation_id)
-        if _state:
-            try:
-                require_owner_or_admin(_state.owner_id)
-            except PermissionError:
-                return jsonify({
-                    "success": False,
-                    "error": t('api.simulationNotFound', id=simulation_id)
-                }), 404
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_owner_or_admin(_state.owner_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
 
         # Determine file path
         if platform == "reddit":
@@ -1241,17 +1262,21 @@ def get_simulation_config_realtime(simulation_id: str):
                 "error": t('api.simulationNotFound', id=simulation_id)
             }), 404
 
-        # Ownership check
+        # Ownership check (hard pattern: 404 for both missing and forbidden)
         _mgr = SimulationManager()
         _state = _mgr.get_simulation(simulation_id)
-        if _state:
-            try:
-                require_owner_or_admin(_state.owner_id)
-            except PermissionError:
-                return jsonify({
-                    "success": False,
-                    "error": t('api.simulationNotFound', id=simulation_id)
-                }), 404
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_owner_or_admin(_state.owner_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
 
         # Config file path
         config_file = os.path.join(sim_dir, "simulation_config.json")
@@ -2466,17 +2491,21 @@ def interview_agent():
                 "error": t('api.invalidInterviewPlatform')
             }), 400
 
-        # Ownership check
+        # Ownership check (hard pattern: 404 for both missing and forbidden)
         _mgr = SimulationManager()
         _state = _mgr.get_simulation(simulation_id)
-        if _state:
-            try:
-                require_owner_or_admin(_state.owner_id)
-            except PermissionError:
-                return jsonify({
-                    "success": False,
-                    "error": t('api.simulationNotFound', id=simulation_id)
-                }), 404
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_owner_or_admin(_state.owner_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
 
         # Check environment status
         if not SimulationRunner.check_env_alive(simulation_id):
@@ -2613,17 +2642,21 @@ def interview_agents_batch():
                     "error": t('api.interviewListInvalidPlatform', index=i + 1)
                 }), 400
 
-        # Ownership check
+        # Ownership check (hard pattern: 404 for both missing and forbidden)
         _mgr = SimulationManager()
         _state = _mgr.get_simulation(simulation_id)
-        if _state:
-            try:
-                require_owner_or_admin(_state.owner_id)
-            except PermissionError:
-                return jsonify({
-                    "success": False,
-                    "error": t('api.simulationNotFound', id=simulation_id)
-                }), 404
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_owner_or_admin(_state.owner_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
 
         # Check environment status
         if not SimulationRunner.check_env_alive(simulation_id):
@@ -2732,17 +2765,21 @@ def interview_all_agents():
                 "error": t('api.invalidInterviewPlatform')
             }), 400
 
-        # Ownership check
+        # Ownership check (hard pattern: 404 for both missing and forbidden)
         _mgr = SimulationManager()
         _state = _mgr.get_simulation(simulation_id)
-        if _state:
-            try:
-                require_owner_or_admin(_state.owner_id)
-            except PermissionError:
-                return jsonify({
-                    "success": False,
-                    "error": t('api.simulationNotFound', id=simulation_id)
-                }), 404
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_owner_or_admin(_state.owner_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
 
         # Check environment status
         if not SimulationRunner.check_env_alive(simulation_id):
@@ -2835,17 +2872,21 @@ def get_interview_history():
                 "error": t('api.requireSimulationId')
             }), 400
 
-        # Ownership check
+        # Ownership check (hard pattern: 404 for both missing and forbidden)
         _mgr = SimulationManager()
         _state = _mgr.get_simulation(simulation_id)
-        if _state:
-            try:
-                require_owner_or_admin(_state.owner_id)
-            except PermissionError:
-                return jsonify({
-                    "success": False,
-                    "error": t('api.simulationNotFound', id=simulation_id)
-                }), 404
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_owner_or_admin(_state.owner_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
 
         history = SimulationRunner.get_interview_history(
             simulation_id=simulation_id,
@@ -2906,17 +2947,21 @@ def get_env_status():
                 "error": t('api.requireSimulationId')
             }), 400
 
-        # Ownership check
+        # Ownership check (hard pattern: 404 for both missing and forbidden)
         _mgr = SimulationManager()
         _state = _mgr.get_simulation(simulation_id)
-        if _state:
-            try:
-                require_owner_or_admin(_state.owner_id)
-            except PermissionError:
-                return jsonify({
-                    "success": False,
-                    "error": t('api.simulationNotFound', id=simulation_id)
-                }), 404
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_owner_or_admin(_state.owner_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
 
         env_alive = SimulationRunner.check_env_alive(simulation_id)
         
