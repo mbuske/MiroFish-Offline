@@ -406,6 +406,9 @@ def build_graph():
         # Get storage in request context (background thread cannot access current_app)
         storage = _get_storage()
 
+        # Capture user id in request context to propagate into the background thread
+        owner_id = current_user_id()
+
         # Capture locale in request context to propagate into the background thread
         locale = get_locale()
 
@@ -453,7 +456,7 @@ def build_graph():
                     message=t('progress.creatingZepGraph'),
                     progress=10
                 )
-                graph_id = builder.create_graph(name=graph_name)
+                graph_id = builder.create_graph(name=graph_name, owner_id=owner_id)
 
                 # Update project graph_id
                 project.graph_id = graph_id

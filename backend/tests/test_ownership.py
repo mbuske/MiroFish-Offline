@@ -140,3 +140,91 @@ def test_list_reports_filters_by_owner(tmp_path, monkeypatch):
     assert all(x.owner_id == "u1" for x in mine)
     everything = ReportManager.list_reports(include_all=True)
     assert len(everything) == 2
+
+
+def test_create_graph_includes_owner_param(monkeypatch):
+    """Verify owner_id is passed as a query param and referenced in the Cypher."""
+    import app.storage.neo4j_storage as ns
+
+    captured = {}
+
+    class FakeTx:
+        def run(self, query, **params):
+            # Capture the CREATE query (the graph node creation one)
+            if "CREATE" in query and "Graph" in query:
+                captured["query"] = query
+                captured["params"] = params
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute_write(self, func):
+            return func(FakeTx())
+        def execute_read(self, func):
+            return func(FakeTx())
+
+    class FakeDriver:
+        def session(self): return FakeSession()
+
+    st = ns.Neo4jStorage.__new__(ns.Neo4jStorage)
+    st._driver = FakeDriver()
+    st.create_graph("G", owner_id="u1")
+
+    assert captured.get("params", {}).get("owner_id") == "u1", \
+        "owner_id must be passed as a query parameter"
+    assert "owner_id" in captured.get("query", ""), \
+        "owner_id must appear in the Cypher query string"
+
+
+def test_get_graph_owner_returns_owner_id(monkeypatch):
+    """Verify get_graph_owner returns the owner_id stored on the Graph root node."""
+    import app.storage.neo4j_storage as ns
+
+    class FakeRecord:
+        def __getitem__(self, key):
+            return "u1" if key == "owner_id" else None
+
+    class FakeTx:
+        def run(self, query, **params):
+            class R:
+                def single(self_inner): return FakeRecord()
+            return R()
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute_read(self, func):
+            return func(FakeTx())
+
+    class FakeDriver:
+        def session(self): return FakeSession()
+
+    st = ns.Neo4jStorage.__new__(ns.Neo4jStorage)
+    st._driver = FakeDriver()
+    result = st.get_graph_owner("g1")
+    assert result == "u1"
+
+
+def test_get_graph_owner_returns_none_for_legacy(monkeypatch):
+    """Verify get_graph_owner returns None when owner_id is absent (legacy graph)."""
+    import app.storage.neo4j_storage as ns
+
+    class FakeTx:
+        def run(self, query, **params):
+            class R:
+                def single(self_inner): return None
+            return R()
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute_read(self, func):
+            return func(FakeTx())
+
+    class FakeDriver:
+        def session(self): return FakeSession()
+
+    st = ns.Neo4jStorage.__new__(ns.Neo4jStorage)
+    st._driver = FakeDriver()
+    result = st.get_graph_owner("g_legacy")
+    assert result is None

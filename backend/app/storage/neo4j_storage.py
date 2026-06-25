@@ -100,7 +100,7 @@ class Neo4jStorage(GraphStorage):
     # Graph lifecycle
     # ----------------------------------------------------------------
 
-    def create_graph(self, name: str, description: str = "") -> str:
+    def create_graph(self, name: str, description: str = "", owner_id: Optional[str] = None) -> str:
         graph_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
 
@@ -111,6 +111,7 @@ class Neo4jStorage(GraphStorage):
                     graph_id: $graph_id,
                     name: $name,
                     description: $description,
+                    owner_id: $owner_id,
                     ontology_json: '{}',
                     created_at: $created_at
                 })
@@ -118,6 +119,7 @@ class Neo4jStorage(GraphStorage):
                 graph_id=graph_id,
                 name=name,
                 description=description,
+                owner_id=owner_id,
                 created_at=now,
             )
 
@@ -126,6 +128,21 @@ class Neo4jStorage(GraphStorage):
 
         logger.info(f"Created graph '{name}' with id {graph_id}")
         return graph_id
+
+    def get_graph_owner(self, graph_id: str) -> Optional[str]:
+        """Return the owner_id stored on the Graph root node, or None for legacy graphs."""
+        def _read(tx):
+            result = tx.run(
+                "MATCH (g:Graph {graph_id: $gid}) RETURN g.owner_id AS owner_id",
+                gid=graph_id,
+            )
+            record = result.single()
+            if record is None:
+                return None
+            return record["owner_id"]
+
+        with self._driver.session() as session:
+            return self._call_with_retry(session.execute_read, _read)
 
     def delete_graph(self, graph_id: str) -> None:
         def _delete(tx):
