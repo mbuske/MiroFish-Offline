@@ -16,6 +16,22 @@ def client(tmp_path, monkeypatch):
     return app.test_client()
 
 
+@pytest.fixture
+def me_client(tmp_path, monkeypatch):
+    """Client with security middleware registered so /me works via cookie."""
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    authdb.init_db(Config.AUTH_DB_PATH)
+    from app.accounts import service as acct_service
+    aid = acct_service.create_account("Acme Corp")
+    service.create_user("member@b.de", "pw12345", name="Member", account_id=aid)
+    app = Flask(__name__)
+    app.config.from_object(Config)
+    app.register_blueprint(auth_bp)
+    from app.security import register_auth
+    register_auth(app)
+    return app.test_client()
+
+
 def test_login_success_sets_cookie(client):
     r = client.post("/api/auth/login", json={"email": "a@b.de", "password": "pw12345"})
     assert r.status_code == 200
@@ -46,3 +62,30 @@ def test_login_inactive_user_generic_401(client):
     r = client.post("/api/auth/login", json={"email": "a@b.de", "password": "pw12345"})
     assert r.status_code == 401
     assert r.get_json().get("error") == "Invalid credentials"
+
+
+def test_me_returns_account_id_and_name(me_client):
+    """Login as an account member; /me must return account_id and account_name."""
+    r = me_client.post("/api/auth/login", json={"email": "member@b.de", "password": "pw12345"})
+    assert r.status_code == 200
+    user = r.get_json()["user"]
+    assert user["account_id"] is not None
+    assert user["account_name"] == "Acme Corp"
+
+    # Also verify /me endpoint returns the same fields.
+    r2 = me_client.get("/api/auth/me")
+    assert r2.status_code == 200
+    me = r2.get_json()["user"]
+    assert me["account_id"] == user["account_id"]
+    assert me["account_name"] == "Acme Corp"
+
+
+def test_me_superadmin_has_null_account(me_client):
+    """A superadmin (account_id=None) gets null account fields on /me."""
+    from app.auth.models import ROLE_SUPERADMIN
+    service.create_user("root@b.de", "rootpw12", role=ROLE_SUPERADMIN)
+    r = me_client.post("/api/auth/login", json={"email": "root@b.de", "password": "rootpw12"})
+    assert r.status_code == 200
+    user = r.get_json()["user"]
+    assert user["account_id"] is None
+    assert user["account_name"] is None

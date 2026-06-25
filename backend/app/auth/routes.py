@@ -8,7 +8,13 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 
 def _user_dict(user):
-    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role}
+    account_name = None
+    if user.account_id:
+        from ..accounts.service import get_account
+        acc = get_account(user.account_id)
+        account_name = acc.name if acc else None
+    return {"id": user.id, "email": user.email, "name": user.name,
+            "role": user.role, "account_id": user.account_id, "account_name": account_name}
 
 
 def _set_cookie(resp, token):
