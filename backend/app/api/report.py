@@ -17,7 +17,8 @@ from ..models.task import TaskManager, TaskStatus
 from ..services.graph_tools import GraphToolsService
 from ..utils.logger import get_logger
 from ..utils import t, get_locale, set_locale
-from ..auth.ownership import current_user_id, is_admin, require_owner_or_admin, can_access
+from ..auth.ownership import current_user_id
+from ..auth.accounts import current_account_id, is_superadmin, require_account_access, can_access_account
 from ..auth.graph_access import require_graph_owner_or_admin
 
 logger = get_logger('mirofish.api.report')
@@ -40,7 +41,7 @@ def generate_report():
             return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
 
         try:
-            require_owner_or_admin(state.owner_id)
+            require_account_access(getattr(state, 'account_id', None))
         except PermissionError:
             return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
 
@@ -70,6 +71,7 @@ def generate_report():
         import uuid
         report_id = f"report_{uuid.uuid4().hex[:12]}"
         creator_id = current_user_id()
+        creator_account_id = current_account_id()
 
         task_manager = TaskManager()
         task_id = task_manager.create_task(
@@ -101,6 +103,7 @@ def generate_report():
                     task_manager.update_task(task_id, progress=progress, message=f"[{stage}] {message}")
                 report = agent.generate_report(progress_callback=progress_callback, report_id=report_id)
                 report.owner_id = creator_id
+                report.account_id = creator_account_id
                 ReportManager.save_report(report)
                 if report.status == ReportStatus.COMPLETED:
                     task_manager.complete_task(task_id, result={"report_id": report.report_id, "simulation_id": simulation_id, "status": "completed"})
@@ -136,7 +139,7 @@ def get_generate_status():
 
         if simulation_id:
             existing_report = ReportManager.get_report_by_simulation(simulation_id)
-            if existing_report and existing_report.status == ReportStatus.COMPLETED and can_access(existing_report.owner_id):
+            if existing_report and existing_report.status == ReportStatus.COMPLETED and can_access_account(getattr(existing_report, 'account_id', None)):
                 return jsonify({"success": True, "data": {
                     "simulation_id": simulation_id,
                     "report_id": existing_report.report_id,
@@ -170,7 +173,7 @@ def get_report(report_id: str):
         if not report:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         try:
-            require_owner_or_admin(report.owner_id)
+            require_account_access(report.account_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         return jsonify({"success": True, "data": report.to_dict()})
@@ -186,7 +189,7 @@ def get_report_by_simulation(simulation_id: str):
         if not report:
             return jsonify({"success": False, "error": t('api.noReportForSim', id=simulation_id), "has_report": False}), 404
         try:
-            require_owner_or_admin(report.owner_id)
+            require_account_access(report.account_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.noReportForSim', id=simulation_id), "has_report": False}), 404
         return jsonify({"success": True, "data": report.to_dict()})
@@ -204,7 +207,8 @@ def list_reports():
             simulation_id=simulation_id,
             limit=limit,
             owner_id=current_user_id(),
-            include_all=is_admin(),
+            account_id=current_account_id(),
+            include_all=is_superadmin(),
         )
         return jsonify({"success": True, "data": [r.to_dict() for r in reports], "count": len(reports)})
     except Exception as e:
@@ -219,7 +223,7 @@ def download_report(report_id: str):
         if not report:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         try:
-            require_owner_or_admin(report.owner_id)
+            require_account_access(report.account_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
 
@@ -245,7 +249,7 @@ def delete_report(report_id: str):
         if not report:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         try:
-            require_owner_or_admin(report.owner_id)
+            require_account_access(report.account_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         success = ReportManager.delete_report(report_id)
@@ -278,7 +282,7 @@ def chat_with_report_agent():
             return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
 
         try:
-            require_owner_or_admin(state.owner_id)
+            require_account_access(getattr(state, 'account_id', None))
         except PermissionError:
             return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
 
@@ -321,7 +325,7 @@ def get_report_progress(report_id: str):
         if not report:
             return jsonify({"success": False, "error": t('api.reportProgressNotAvail', id=report_id)}), 404
         try:
-            require_owner_or_admin(report.owner_id)
+            require_account_access(report.account_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.reportProgressNotAvail', id=report_id)}), 404
         progress = ReportManager.get_progress(report_id)
@@ -340,7 +344,7 @@ def get_report_sections(report_id: str):
         if not report:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         try:
-            require_owner_or_admin(report.owner_id)
+            require_account_access(report.account_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         sections = ReportManager.get_generated_sections(report_id)
@@ -363,7 +367,7 @@ def get_single_section(report_id: str, section_index: int):
         if not report:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         try:
-            require_owner_or_admin(report.owner_id)
+            require_account_access(report.account_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         section_path = ReportManager._get_section_path(report_id, section_index)
@@ -383,7 +387,7 @@ def get_single_section(report_id: str, section_index: int):
 def check_report_status(simulation_id: str):
     try:
         report = ReportManager.get_report_by_simulation(simulation_id)
-        if report is not None and not can_access(report.owner_id):
+        if report is not None and not can_access_account(getattr(report, 'account_id', None)):
             report = None
         has_report = report is not None
         report_status = report.status.value if report and hasattr(report.status, 'value') else (report.status if report else None)
@@ -410,7 +414,7 @@ def get_agent_log(report_id: str):
         if not report:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         try:
-            require_owner_or_admin(report.owner_id)
+            require_account_access(report.account_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         from_line = request.args.get('from_line', 0, type=int)
@@ -428,7 +432,7 @@ def stream_agent_log(report_id: str):
         if not report:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         try:
-            require_owner_or_admin(report.owner_id)
+            require_account_access(report.account_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         logs = ReportManager.get_agent_log_stream(report_id)
@@ -447,7 +451,7 @@ def get_console_log(report_id: str):
         if not report:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         try:
-            require_owner_or_admin(report.owner_id)
+            require_account_access(report.account_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         from_line = request.args.get('from_line', 0, type=int)
@@ -465,7 +469,7 @@ def stream_console_log(report_id: str):
         if not report:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         try:
-            require_owner_or_admin(report.owner_id)
+            require_account_access(report.account_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         logs = ReportManager.get_console_log_stream(report_id)

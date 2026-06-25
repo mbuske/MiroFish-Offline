@@ -341,6 +341,36 @@ def test_get_graph_owner_returns_none_for_legacy(monkeypatch):
     assert result is None
 
 
+def test_list_reports_filters_by_account(tmp_path, monkeypatch):
+    from app.services.report_agent import ReportManager, Report, ReportStatus
+    monkeypatch.setattr(ReportManager, "REPORTS_DIR", str(tmp_path), raising=False)
+    r1 = Report(
+        report_id="r1",
+        simulation_id="s1",
+        graph_id="g1",
+        simulation_requirement="req1",
+        status=ReportStatus.COMPLETED,
+        owner_id="u1",
+        account_id="accA",
+    )
+    r2 = Report(
+        report_id="r2",
+        simulation_id="s2",
+        graph_id="g2",
+        simulation_requirement="req2",
+        status=ReportStatus.COMPLETED,
+        owner_id="u2",
+        account_id="accB",
+    )
+    ReportManager.save_report(r1)
+    ReportManager.save_report(r2)
+    mine = ReportManager.list_reports(account_id="accA")
+    assert len(mine) == 1
+    assert all(x.account_id == "accA" for x in mine)
+    everything = ReportManager.list_reports(include_all=True)
+    assert len(everything) == 2
+
+
 def test_account_access_helpers():
     from flask import Flask, g
     from app.auth import accounts

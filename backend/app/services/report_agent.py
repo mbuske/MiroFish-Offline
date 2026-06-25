@@ -452,6 +452,7 @@ class Report:
     completed_at: str = ""
     error: Optional[str] = None
     owner_id: Optional[str] = None
+    account_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -465,7 +466,8 @@ class Report:
             "created_at": self.created_at,
             "completed_at": self.completed_at,
             "error": self.error,
-            "owner_id": self.owner_id
+            "owner_id": self.owner_id,
+            "account_id": self.account_id
         }
 
 
@@ -2509,7 +2511,8 @@ class ReportManager:
             created_at=data.get('created_at', ''),
             completed_at=data.get('completed_at', ''),
             error=data.get('error'),
-            owner_id=data.get('owner_id')
+            owner_id=data.get('owner_id'),
+            account_id=data.get('account_id')
         )
     
     @classmethod
@@ -2539,9 +2542,10 @@ class ReportManager:
         simulation_id: Optional[str] = None,
         limit: int = 50,
         owner_id: Optional[str] = None,
+        account_id: Optional[str] = None,
         include_all: bool = False,
     ) -> List[Report]:
-        """List reports with optional owner filtering."""
+        """List reports with optional account/owner filtering."""
         cls._ensure_reports_dir()
 
         reports = []
@@ -2561,9 +2565,12 @@ class ReportManager:
                     if simulation_id is None or report.simulation_id == simulation_id:
                         reports.append(report)
 
-        # Apply owner filter unless include_all is True
-        if not include_all and owner_id is not None:
-            reports = [r for r in reports if r.owner_id == owner_id]
+        # Apply account filter unless include_all is True
+        if not include_all:
+            if account_id is not None:
+                reports = [r for r in reports if r.account_id == account_id]
+            elif owner_id is not None:
+                reports = [r for r in reports if r.owner_id == owner_id]
 
         # sorted by creation time descending
         reports.sort(key=lambda r: r.created_at, reverse=True)
