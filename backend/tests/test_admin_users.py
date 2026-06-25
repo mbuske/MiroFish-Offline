@@ -58,3 +58,24 @@ def test_unauthenticated_blocked_on_admin_routes(tmp_path, monkeypatch):
     app.register_blueprint(auth_bp); app.register_blueprint(admin_bp)
     register_auth(app)
     assert app.test_client().get("/api/admin/users").status_code in (401, 403)
+
+
+def test_account_admin_scoped_to_own_account(tmp_path, monkeypatch):
+    from app.accounts import service as acct_service
+    from app.auth.models import ROLE_ACCOUNT_ADMIN, ROLE_USER
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(Config, "API_TOKEN", "")
+    authdb.init_db(Config.AUTH_DB_PATH)
+    a = acct_service.create_account("A", "su"); b = acct_service.create_account("B", "su")
+    service.create_user("admA@x.de", "pw12345", role=ROLE_ACCOUNT_ADMIN, account_id=a)
+    other = service.create_user("ub@x.de", "pw12345", role=ROLE_USER, account_id=b)
+    app = Flask(__name__); app.config.from_object(Config)
+    app.register_blueprint(auth_bp); app.register_blueprint(admin_bp); register_auth(app)
+    c = app.test_client()
+    c.post("/api/auth/login", json={"email": "admA@x.de", "password": "pw12345"})
+    # create -> lands in account A
+    assert c.post("/api/admin/users", json={"email": "new@x.de", "password": "pw12345"}).status_code == 201
+    emails = [u["email"] for u in c.get("/api/admin/users").get_json()["users"]]
+    assert "new@x.de" in emails and "ub@x.de" not in emails
+    # acting on account-B user -> 404
+    assert c.post(f"/api/admin/users/{other}/active", json={"active": False}).status_code == 404
