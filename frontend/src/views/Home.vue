@@ -8,6 +8,7 @@
           {{ $t('nav.visitGithub') }} <span>↗</span>
         </a>
         <LanguageSwitcher />
+        <UserMenu />
       </div>
     </nav>
 
@@ -154,6 +155,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'
+import UserMenu from '../components/UserMenu.vue'
 
 const { t } = useI18n()
 

@@ -31,6 +31,7 @@
           {{ statusText }}
         </span>
         <LanguageSwitcher />
+        <UserMenu />
       </div>
     </header>
 
@@ -38,7 +39,7 @@
     <main class="content-area">
       <!-- Left Panel: Graph -->
       <div class="panel-wrapper left" :style="leftPanelStyle">
-        <GraphPanel 
+        <GraphPanel
           :graphData="graphData"
           :loading="graphLoading"
           :currentPhase="2"
@@ -71,6 +72,7 @@ import { useI18n } from 'vue-i18n'
 import GraphPanel from '../components/GraphPanel.vue'
 import Step2EnvSetup from '../components/Step2EnvSetup.vue'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'
+import UserMenu from '../components/UserMenu.vue'
 import { getProject, getGraphData } from '../api/graph'
 import { getSimulation, stopSimulation, getEnvStatus, closeSimulationEnv } from '../api/simulation'
 
