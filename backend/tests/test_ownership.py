@@ -76,6 +76,15 @@ def test_list_projects_filters_by_account(tmp_path, monkeypatch):
     assert {p.project_id for p in everything} >= {p1.project_id, p2.project_id}
 
 
+def test_list_projects_fail_closed_none_account(tmp_path, monkeypatch):
+    """FIX 2: non-include_all with account_id None must return nothing."""
+    from app.models import project as pj
+    monkeypatch.setattr(pj.ProjectManager, "PROJECTS_DIR", str(tmp_path), raising=False)
+    pj.ProjectManager.create_project("P1", owner_id="u1", account_id="accA")
+    pj.ProjectManager.create_project("P2", owner_id="u2", account_id="accB")
+    assert pj.ProjectManager.list_projects(account_id=None, include_all=False) == []
+
+
 def test_list_simulations_filters_by_account(tmp_path, monkeypatch):
     from app.services.simulation_manager import SimulationManager
     m = SimulationManager()
@@ -98,6 +107,16 @@ def test_list_simulations_include_all_returns_all(tmp_path, monkeypatch):
     m.create_simulation(project_id="p2", graph_id="g2", owner_id="u2", account_id="accB")
     everything = m.list_simulations(include_all=True)
     assert len(everything) == 2
+
+
+def test_list_simulations_fail_closed_none_account(tmp_path, monkeypatch):
+    """FIX 2: non-include_all with account_id None must return nothing."""
+    from app.services.simulation_manager import SimulationManager
+    m = SimulationManager()
+    m.SIMULATION_DATA_DIR = str(tmp_path)
+    m.create_simulation(project_id="p1", graph_id="g1", owner_id="u1", account_id="accA")
+    m.create_simulation(project_id="p2", graph_id="g2", owner_id="u2", account_id="accB")
+    assert m.list_simulations(account_id=None, include_all=False) == []
 
 
 def test_chat_route_account_guard_via_require_account_access():
@@ -161,6 +180,17 @@ def test_list_reports_filters_by_account(tmp_path, monkeypatch):
     assert all(x.account_id == "accA" for x in mine)
     everything = ReportManager.list_reports(include_all=True)
     assert len(everything) == 2
+
+
+def test_list_reports_fail_closed_none_account(tmp_path, monkeypatch):
+    """FIX 2: non-include_all with account_id None must return nothing."""
+    from app.services.report_agent import ReportManager, Report, ReportStatus
+    monkeypatch.setattr(ReportManager, "REPORTS_DIR", str(tmp_path), raising=False)
+    ReportManager.save_report(Report(
+        report_id="r1", simulation_id="s1", graph_id="g1",
+        simulation_requirement="req1", status=ReportStatus.COMPLETED,
+        owner_id="u1", account_id="accA"))
+    assert ReportManager.list_reports(account_id=None, include_all=False) == []
 
 
 def test_backfill_includes_graphs_key_and_invokes_graph_backfill(tmp_path, monkeypatch):

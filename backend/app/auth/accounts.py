@@ -1,6 +1,6 @@
 """Account-scope (tenant) access helpers."""
 from flask import g
-from .models import ROLE_SUPERADMIN, ROLE_ACCOUNT_ADMIN
+from .models import ROLE_SUPERADMIN
 
 
 def _user():
@@ -10,11 +10,6 @@ def _user():
 def is_superadmin():
     u = _user()
     return bool(u and u.role == ROLE_SUPERADMIN)
-
-
-def is_account_admin():
-    u = _user()
-    return bool(u and u.role == ROLE_ACCOUNT_ADMIN)
 
 
 def current_account_id():

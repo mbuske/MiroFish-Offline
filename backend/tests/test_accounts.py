@@ -38,6 +38,64 @@ def test_account_service_crud_and_disable_revokes(tmp_path):
     assert user_service.resolve_session(token) is None  # member session revoked
 
 
+def test_disabled_account_blocks_relogin_and_session(tmp_path):
+    """FIX 1: deactivating an account blocks both fresh login and session resolution."""
+    authdb.init_db(str(tmp_path / "auth.db"))
+    aid = acct_service.create_account("Acme", created_by="su1")
+    uid = user_service.create_user("m@acme.de", "pw12345", role=ROLE_USER, account_id=aid)
+    # token minted before disable
+    token = user_service.start_session(uid)
+    assert user_service.resolve_session(token) is not None
+    acct_service.set_account_active(aid, False)
+    # (a) re-login is rejected at the service level (account disabled, account exists)
+    acc = acct_service.get_account(aid)
+    assert acc is not None and acc.is_active is False
+    # (b) any session of a member of the disabled account resolves to None
+    assert user_service.resolve_session(token) is None
+    # a freshly minted session also fails to resolve while account stays disabled
+    token2 = user_service.start_session(uid)
+    assert user_service.resolve_session(token2) is None
+    # re-enabling the account restores resolution
+    acct_service.set_account_active(aid, True)
+    assert user_service.resolve_session(token2) is not None
+
+
+def test_disabled_account_blocks_login_route_superadmin_unaffected(tmp_path, monkeypatch):
+    """FIX 1: login route returns 401 for disabled-account member; superadmin unaffected."""
+    from flask import Flask
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(Config, "API_TOKEN", "")
+    authdb.init_db(Config.AUTH_DB_PATH)
+    service.create_user("root@x.de", "rootpw12", role=ROLE_SUPERADMIN, account_id=None)
+    aid = acct_service.create_account("Acme", created_by="root")
+    service.create_user("m@acme.de", "pw123456", role=ROLE_USER, account_id=aid)
+    app = Flask(__name__); app.config.from_object(Config)
+    app.register_blueprint(auth_bp); app.register_blueprint(superadmin_bp)
+    register_auth(app)
+    c = app.test_client()
+    # member can log in while account active
+    assert c.post("/api/auth/login", json={"email": "m@acme.de", "password": "pw123456"}).status_code == 200
+    acct_service.set_account_active(aid, False)
+    # member is now blocked with generic 401
+    r = c.post("/api/auth/login", json={"email": "m@acme.de", "password": "pw123456"})
+    assert r.status_code == 401
+    assert r.get_json()["error"] == "Invalid credentials"
+    # superadmin (account_id None) still logs in fine
+    assert c.post("/api/auth/login", json={"email": "root@x.de", "password": "rootpw12"}).status_code == 200
+
+
+def test_create_user_requires_account_id_for_non_superadmin(tmp_path):
+    """FIX 2: a non-superadmin user must have an account_id."""
+    authdb.init_db(str(tmp_path / "auth.db"))
+    with pytest.raises(ValueError):
+        user_service.create_user("x@y.de", "pw123456", role=ROLE_USER, account_id=None)
+    with pytest.raises(ValueError):
+        user_service.create_user("z@y.de", "pw123456", role=ROLE_ACCOUNT_ADMIN, account_id=None)
+    # superadmin with None account_id is allowed
+    uid = user_service.create_user("su@y.de", "pw123456", role=ROLE_SUPERADMIN, account_id=None)
+    assert isinstance(uid, str)
+
+
 @pytest.fixture
 def su_client(tmp_path, monkeypatch):
     monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))

@@ -501,6 +501,10 @@ class SimulationManager:
         """
         simulations = []
 
+        # Fail closed: a non-include_all caller with no account_id matches nothing.
+        if not include_all and account_id is None:
+            return simulations
+
         if os.path.exists(self.SIMULATION_DATA_DIR):
             for sim_id in os.listdir(self.SIMULATION_DATA_DIR):
                 # Skip hidden files (such as .DS_Store) and non-directory files

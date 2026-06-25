@@ -2564,10 +2564,12 @@ class ReportManager:
                     if simulation_id is None or report.simulation_id == simulation_id:
                         reports.append(report)
 
-        # Apply account filter unless include_all is True
+        # Apply account filter unless include_all is True.
+        # Fail closed: a non-include_all caller with no account_id matches nothing.
         if not include_all:
-            if account_id is not None:
-                reports = [r for r in reports if r.account_id == account_id]
+            if account_id is None:
+                return []
+            reports = [r for r in reports if r.account_id == account_id]
 
         # sorted by creation time descending
         reports.sort(key=lambda r: r.created_at, reverse=True)

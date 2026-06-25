@@ -11,7 +11,7 @@ def app(tmp_path, monkeypatch):
     monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
     monkeypatch.setattr(Config, "API_TOKEN", "")
     authdb.init_db(Config.AUTH_DB_PATH)
-    service.create_user("a@b.de", "pw12345")
+    service.create_user("a@b.de", "pw12345", account_id="accA")
     app = Flask(__name__)
     app.config.from_object(Config)
     bp = Blueprint("p", __name__)
@@ -48,7 +48,7 @@ def test_account_admin_required_blocks_non_admin(tmp_path, monkeypatch):
     monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
     monkeypatch.setattr(Config, "API_TOKEN", "")
     authdb.init_db(Config.AUTH_DB_PATH)
-    service.create_user("u@b.de", "pw12345")  # role=user
+    service.create_user("u@b.de", "pw12345", account_id="accA")  # role=user
     app = Flask(__name__)
     app.config.from_object(Config)
 

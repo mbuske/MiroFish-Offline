@@ -21,6 +21,7 @@ from ..models.project import ProjectManager, ProjectStatus
 from ..auth.ownership import current_user_id
 from ..auth.accounts import current_account_id, is_superadmin, require_account_access
 from ..auth.graph_access import require_graph_account_access
+from ..auth.decorators import superadmin_required
 
 # Get logger
 logger = get_logger('mirofish.api')
@@ -596,9 +597,15 @@ def get_task(task_id: str):
 
 
 @graph_bp.route('/tasks', methods=['GET'])
+@superadmin_required
 def list_tasks():
     """
-    List all tasks
+    List all tasks (superadmin only).
+
+    Tasks have no account association, so this blanket enumeration would leak
+    cross-account simulation_id/graph_id/report_id metadata. It is a debug/admin
+    listing not used by normal (non-superadmin) frontend flows, so it is gated
+    to superadmin. /task/<id> remains open (requires an unguessable task_id).
     """
     tasks = TaskManager().list_tasks()
     

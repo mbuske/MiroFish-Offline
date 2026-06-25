@@ -9,7 +9,7 @@ from app.config import Config
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
     authdb.init_db(Config.AUTH_DB_PATH)
-    service.create_user("a@b.de", "pw12345", name="A")
+    service.create_user("a@b.de", "pw12345", name="A", account_id="accA")
     app = Flask(__name__)
     app.config.from_object(Config)
     app.register_blueprint(auth_bp)

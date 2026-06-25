@@ -41,12 +41,12 @@ def test_hash_and_verify_password():
 
 def test_create_user_and_duplicate(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
-    uid = service.create_user("x@y.de", "pw12345", name="X")
+    uid = service.create_user("x@y.de", "pw12345", name="X", account_id="accA")
     assert isinstance(uid, str)
     fetched = service.get_user_by_email("x@y.de")
     assert fetched.id == uid and fetched.role == "user"
     with pytest.raises(ValueError):
-        service.create_user("x@y.de", "other")
+        service.create_user("x@y.de", "other", account_id="accA")
 
 
 def test_create_user_rejects_empty(tmp_path):
@@ -59,7 +59,7 @@ def test_create_user_rejects_empty(tmp_path):
 
 def _setup(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
-    return service.create_user("a@b.de", "pw")
+    return service.create_user("a@b.de", "pw", account_id="accA")
 
 
 def test_start_and_resolve_session(tmp_path):
@@ -102,7 +102,7 @@ def test_expired_session_rejected(tmp_path):
 
 def test_deactivate_revokes_sessions(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
-    uid = service.create_user("a@b.de", "pw")
+    uid = service.create_user("a@b.de", "pw", account_id="accA")
     token = service.start_session(uid)
     service.set_active(uid, False)
     assert service.resolve_session(token) is None
@@ -110,7 +110,7 @@ def test_deactivate_revokes_sessions(tmp_path):
 
 def test_set_role_and_reset_password(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
-    uid = service.create_user("a@b.de", "pw")
+    uid = service.create_user("a@b.de", "pw", account_id="accA")
     service.set_role(uid, ROLE_ACCOUNT_ADMIN)
     assert service.get_user(uid).role == ROLE_ACCOUNT_ADMIN
     service.reset_password(uid, "newpw99")
@@ -132,8 +132,8 @@ def test_count_account_admins_counts_active_admins_only(tmp_path):
 
 def test_list_users_returns_all_ordered(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
-    service.create_user("a@x.de", "pw")
-    service.create_user("b@x.de", "pw")
+    service.create_user("a@x.de", "pw", account_id="accA")
+    service.create_user("b@x.de", "pw", account_id="accA")
     emails = [u.email for u in service.list_users()]
     assert set(emails) == {"a@x.de", "b@x.de"}
 

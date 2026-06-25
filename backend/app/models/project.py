@@ -232,8 +232,11 @@ class ProjectManager:
             if project:
                 projects.append(project)
 
-        # Apply account filter unless include_all is set
-        if not include_all and account_id is not None:
+        # Apply account filter unless include_all is set.
+        # Fail closed: a non-include_all caller with no account_id matches nothing.
+        if not include_all:
+            if account_id is None:
+                return []
             projects = [p for p in projects if p.account_id == account_id]
 
         # Sort by creation time (descending)

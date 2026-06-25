@@ -40,6 +40,8 @@ def create_user(email, password, name=None, role=ROLE_USER, account_id=None, cre
         raise ValueError("password required")
     if role not in _VALID_ROLES:
         raise ValueError(f"invalid role: {role!r}")
+    if role != ROLE_SUPERADMIN and not account_id:
+        raise ValueError("account_id required for non-superadmin")
     now = datetime.utcnow()
     uid = str(uuid.uuid4())
     with authdb.session_scope() as s:
@@ -94,6 +96,13 @@ def resolve_session(token):
         user = s.query(User).filter_by(id=row.user_id).first()
         if not user or not user.is_active:
             return None
+        # Block resolution when the user's account is deactivated.
+        # Query Account directly here to avoid a circular import with accounts.service.
+        if user.account_id:
+            from .models import Account
+            acc = s.query(Account).filter_by(id=user.account_id).first()
+            if acc is not None and acc.is_active is False:
+                return None
         row.last_used_at = now
         s.expunge(user)
         return user

@@ -35,6 +35,12 @@ def login():
     user = service.get_user_by_email(email)
     if not user or not user.is_active or not service.verify_password(password, user.password_hash):
         return jsonify({"success": False, "error": "Invalid credentials"}), 401
+    # Block login when the user's account is deactivated (superadmin has account_id None).
+    if user.account_id:
+        from ..accounts.service import get_account
+        acc = get_account(user.account_id)
+        if acc is not None and acc.is_active is False:
+            return jsonify({"success": False, "error": "Invalid credentials"}), 401
     token = service.start_session(
         user.id, ttl_days=Config.SESSION_TTL_DAYS,
         user_agent=request.headers.get("User-Agent"),

@@ -43,7 +43,7 @@ def test_nonadmin_forbidden_on_admin_routes(tmp_path, monkeypatch):
     monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
     monkeypatch.setattr(Config, "API_TOKEN", "")
     authdb.init_db(Config.AUTH_DB_PATH)
-    service.create_user("user@x.de", "pw12345", role="user")
+    service.create_user("user@x.de", "pw12345", role="user", account_id="accA")
     app = Flask(__name__); app.config.from_object(Config)
     app.register_blueprint(auth_bp); app.register_blueprint(admin_bp)
     register_auth(app)

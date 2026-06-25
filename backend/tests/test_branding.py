@@ -63,7 +63,7 @@ def admin_client(auth_db):
 @pytest.fixture()
 def user_client(auth_db):
     """Flask test client logged in as a regular (non-admin) user."""
-    auth_service.create_user("user@x.de", "userpw", role="user")
+    auth_service.create_user("user@x.de", "userpw", role="user", account_id="accA")
     app = Flask(__name__)
     app.config.from_object(Config)
     app.register_blueprint(auth_bp)
