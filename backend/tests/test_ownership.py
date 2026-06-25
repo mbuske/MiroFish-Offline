@@ -78,6 +78,20 @@ def test_list_simulations_filters_by_owner(tmp_path, monkeypatch):
     assert len(everything) == 2
 
 
+def test_list_simulations_filters_by_account(tmp_path, monkeypatch):
+    from app.services.simulation_manager import SimulationManager
+    m = SimulationManager()
+    m.SIMULATION_DATA_DIR = str(tmp_path)
+    # create two simulations with different accounts; owner_id kept as audit stamp
+    s1 = m.create_simulation(project_id="p1", graph_id="g1", owner_id="u1", account_id="accA")
+    s2 = m.create_simulation(project_id="p2", graph_id="g2", owner_id="u2", account_id="accB")
+    mine = m.list_simulations(account_id="accA")
+    assert {s.simulation_id for s in mine} == {s1.simulation_id}
+    assert all(s.account_id == "accA" for s in mine)
+    everything = m.list_simulations(include_all=True)
+    assert {s.simulation_id for s in everything} >= {s1.simulation_id, s2.simulation_id}
+
+
 def test_chat_route_ownership_guard_via_require_owner_or_admin():
     """Verify the logic that guards POST /chat: require_owner_or_admin raises for
     a foreign owner_id, so a non-owner would receive 404 instead of graph access.

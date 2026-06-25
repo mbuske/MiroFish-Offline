@@ -75,8 +75,9 @@ class SimulationState:
     # Error message
     error: Optional[str] = None
 
-    # Ownership
+    # Ownership / account scope
     owner_id: Optional[str] = None
+    account_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Complete status dict (internal use)"""
@@ -99,6 +100,7 @@ class SimulationState:
             "updated_at": self.updated_at,
             "error": self.error,
             "owner_id": self.owner_id,
+            "account_id": self.account_id,
         }
 
     def to_simple_dict(self) -> Dict[str, Any]:
@@ -198,6 +200,7 @@ class SimulationManager:
             updated_at=data.get("updated_at", datetime.now().isoformat()),
             error=data.get("error"),
             owner_id=data.get("owner_id"),
+            account_id=data.get("account_id"),
         )
 
         self._simulations[simulation_id] = state
@@ -210,6 +213,7 @@ class SimulationManager:
         enable_twitter: bool = True,
         enable_reddit: bool = True,
         owner_id: Optional[str] = None,
+        account_id: Optional[str] = None,
     ) -> SimulationState:
         """
         Create new simulation
@@ -219,7 +223,8 @@ class SimulationManager:
             graph_id: Graph ID
             enable_twitter: Whether to enable Twitter simulation
             enable_reddit: Whether to enable Reddit simulation
-            owner_id: ID of the user creating the simulation (for ownership)
+            owner_id: ID of the user creating the simulation (audit stamp)
+            account_id: Account (tenant) this simulation belongs to
 
         Returns:
             SimulationState
@@ -235,6 +240,7 @@ class SimulationManager:
             enable_reddit=enable_reddit,
             status=SimulationStatus.CREATED,
             owner_id=owner_id,
+            account_id=account_id,
         )
         
         self._save_simulation_state(state)
@@ -482,6 +488,7 @@ class SimulationManager:
         self,
         project_id: Optional[str] = None,
         owner_id: Optional[str] = None,
+        account_id: Optional[str] = None,
         include_all: bool = False,
     ) -> List[SimulationState]:
         """List simulations.
@@ -489,9 +496,11 @@ class SimulationManager:
         Args:
             project_id: Optional project filter.
             owner_id: When set (and include_all is False) only return simulations
-                      whose owner_id matches.
-            include_all: When True, return all simulations regardless of owner
-                         (admin use).
+                      whose owner_id matches (legacy owner-scoped filter).
+            account_id: When set (and include_all is False) only return simulations
+                        whose account_id matches (preferred account-scoped filter).
+            include_all: When True, return all simulations regardless of owner/account
+                         (superadmin use).
         """
         simulations = []
 
@@ -513,8 +522,12 @@ class SimulationManager:
                 if state:
                     if project_id is not None and state.project_id != project_id:
                         continue
-                    if not include_all and owner_id is not None and state.owner_id != owner_id:
-                        continue
+                    if not include_all:
+                        # Account-scoped filter takes precedence over legacy owner filter
+                        if account_id is not None and state.account_id != account_id:
+                            continue
+                        elif account_id is None and owner_id is not None and state.owner_id != owner_id:
+                            continue
                     simulations.append(state)
 
         return simulations
