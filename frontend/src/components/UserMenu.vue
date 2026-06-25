@@ -8,6 +8,7 @@
     <div v-if="open" class="menu-dropdown">
       <!-- User identity header -->
       <div class="menu-identity">
+        <span v-if="accountName" class="identity-account">{{ accountName }}</span>
         <span class="identity-email">{{ user?.email }}</span>
       </div>
 
@@ -29,14 +30,23 @@
 
       <div class="menu-divider"></div>
 
-      <!-- Admin section -->
-      <template v-if="isAdmin">
+      <!-- Admin section: superadmin -->
+      <template v-if="isSuperadmin">
         <div class="menu-section-label">{{ $t('auth.menu.admin') }}</div>
-        <router-link class="menu-item" to="/admin/users" @click="open = false">
-          {{ $t('auth.admin.usersTitle') }}
+        <router-link class="menu-item" to="/superadmin/accounts" @click="open = false">
+          {{ $t('accounts.menuTitle') }}
         </router-link>
         <router-link class="menu-item" to="/admin/branding" @click="open = false">
           {{ $t('branding.menuTitle') }}
+        </router-link>
+        <div class="menu-divider"></div>
+      </template>
+
+      <!-- Admin section: account_admin -->
+      <template v-else-if="isAccountAdmin">
+        <div class="menu-section-label">{{ $t('auth.menu.admin') }}</div>
+        <router-link class="menu-item" to="/admin/users" @click="open = false">
+          {{ $t('auth.admin.usersTitle') }}
         </router-link>
         <div class="menu-divider"></div>
       </template>
@@ -60,7 +70,7 @@ const auth = useAuth()
 const router = useRouter()
 const { locale } = useI18n()
 
-const { user, isAuthenticated, isAdmin } = auth
+const { user, isAuthenticated, accountName, isSuperadmin, isAccountAdmin } = auth
 
 const open = ref(false)
 const menuRef = ref(null)
@@ -147,6 +157,14 @@ onUnmounted(() => {
 
 .menu-identity {
   padding: 8px 12px 6px;
+}
+
+.identity-account {
+  display: block;
+  font-size: 0.8rem;
+  color: #333;
+  font-weight: 600;
+  margin-bottom: 2px;
 }
 
 .identity-email {

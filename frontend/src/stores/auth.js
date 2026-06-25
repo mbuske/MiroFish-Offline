@@ -8,7 +8,9 @@ export function useAuth() {
     user: computed(() => state.user),
     ready: computed(() => state.ready),
     isAuthenticated: computed(() => !!state.user),
-    isAdmin: computed(() => state.user?.role === 'admin'),
+    accountName: computed(() => state.user?.account_name ?? null),
+    isSuperadmin: computed(() => state.user?.role === 'superadmin'),
+    isAccountAdmin: computed(() => state.user?.role === 'account_admin'),
     async fetchMe() {
       try {
         // The axios response interceptor already unwraps to response.data,
