@@ -33,6 +33,7 @@
         </tr>
       </tbody>
     </table>
+    <p v-else class="empty">{{ $t('auth.admin.noUsers') }}</p>
 
     <p v-if="actionError" class="err">{{ actionError }}</p>
 
@@ -127,6 +128,7 @@ async function resetPassword(u) {
   busy.value = true
   try {
     await api.post(`/api/admin/users/${u.id}/reset-password`, { password })
+    await loadUsers()
   } catch (e) {
     actionError.value = e.message || 'Failed to reset password'
   } finally {
@@ -174,5 +176,10 @@ th {
 .err {
   color: red;
   margin: 0.25rem 0;
+}
+
+.empty {
+  color: #999;
+  margin: 1rem 0;
 }
 </style>
