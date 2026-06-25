@@ -2541,11 +2541,10 @@ class ReportManager:
         cls,
         simulation_id: Optional[str] = None,
         limit: int = 50,
-        owner_id: Optional[str] = None,
         account_id: Optional[str] = None,
         include_all: bool = False,
     ) -> List[Report]:
-        """List reports with optional account/owner filtering."""
+        """List reports with optional account filtering."""
         cls._ensure_reports_dir()
 
         reports = []
@@ -2569,8 +2568,6 @@ class ReportManager:
         if not include_all:
             if account_id is not None:
                 reports = [r for r in reports if r.account_id == account_id]
-            elif owner_id is not None:
-                reports = [r for r in reports if r.owner_id == owner_id]
 
         # sorted by creation time descending
         reports.sort(key=lambda r: r.created_at, reverse=True)

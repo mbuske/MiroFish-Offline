@@ -18,7 +18,7 @@ from ..utils.logger import get_logger
 from ..utils import t, get_locale, set_locale
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
-from ..auth.ownership import current_user_id, is_admin, require_owner_or_admin
+from ..auth.ownership import current_user_id
 from ..auth.accounts import current_account_id, is_superadmin, require_account_access
 from ..auth.graph_access import require_graph_account_access
 

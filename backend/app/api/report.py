@@ -206,7 +206,6 @@ def list_reports():
         reports = ReportManager.list_reports(
             simulation_id=simulation_id,
             limit=limit,
-            owner_id=current_user_id(),
             account_id=current_account_id(),
             include_all=is_superadmin(),
         )

@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime, timedelta
 from app.auth import db as authdb
 from app.auth import service
-from app.auth.models import User, UserSession, ROLE_ADMIN, ROLE_ACCOUNT_ADMIN, ROLE_USER
+from app.auth.models import User, UserSession, ROLE_ACCOUNT_ADMIN, ROLE_USER
 
 
 def test_init_db_creates_tables(tmp_path):
@@ -19,7 +19,7 @@ def test_user_and_session_persist(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
     with authdb.session_scope() as s:
         u = User(id="u1", email="a@b.de", name="A", password_hash="x",
-                 role=ROLE_ADMIN, is_active=True,
+                 role=ROLE_ACCOUNT_ADMIN, is_active=True,
                  created_at=datetime.utcnow(), updated_at=datetime.utcnow())
         s.add(u)
         s.flush()
@@ -111,7 +111,7 @@ def test_deactivate_revokes_sessions(tmp_path):
 def test_set_role_and_reset_password(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
     uid = service.create_user("a@b.de", "pw")
-    service.set_role(uid, ROLE_ADMIN)
+    service.set_role(uid, ROLE_ACCOUNT_ADMIN)
     assert service.get_user(uid).role == ROLE_ACCOUNT_ADMIN
     service.reset_password(uid, "newpw99")
     assert service.verify_password("newpw99", service.get_user(uid).password_hash)
@@ -119,14 +119,15 @@ def test_set_role_and_reset_password(tmp_path):
         service.set_role(uid, "superuser")
 
 
-def test_count_admins_counts_active_admins_only(tmp_path):
+def test_count_account_admins_counts_active_admins_only(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
-    a1 = service.create_user("a1@x.de", "pw", role=ROLE_ACCOUNT_ADMIN)
-    service.create_user("u1@x.de", "pw", role="user")
-    a2 = service.create_user("a2@x.de", "pw", role=ROLE_ACCOUNT_ADMIN)
-    assert service.count_admins() == 2
+    acc = "acc-test"
+    a1 = service.create_user("a1@x.de", "pw", role=ROLE_ACCOUNT_ADMIN, account_id=acc)
+    service.create_user("u1@x.de", "pw", role="user", account_id=acc)
+    a2 = service.create_user("a2@x.de", "pw", role=ROLE_ACCOUNT_ADMIN, account_id=acc)
+    assert service.count_account_admins(acc) == 2
     service.set_active(a2, False)            # deactivated admin must not count
-    assert service.count_admins() == 1
+    assert service.count_account_admins(acc) == 1
 
 
 def test_list_users_returns_all_ordered(tmp_path):

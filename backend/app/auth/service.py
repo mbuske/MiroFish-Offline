@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import bcrypt
 
 from . import db as authdb
-from .models import User, UserSession, ROLE_ADMIN, ROLE_USER, ROLE_SUPERADMIN, ROLE_ACCOUNT_ADMIN
+from .models import User, UserSession, ROLE_USER, ROLE_SUPERADMIN, ROLE_ACCOUNT_ADMIN
 
 _VALID_ROLES = (ROLE_SUPERADMIN, ROLE_ACCOUNT_ADMIN, ROLE_USER)
 
@@ -151,12 +151,6 @@ def list_users(account_id=None):
         for u in users:
             s.expunge(u)
         return users
-
-
-def count_admins():
-    """Legacy: count active account_admins. Kept for seed.py — removed in a later task."""
-    with authdb.session_scope() as s:
-        return s.query(User).filter_by(role=ROLE_ADMIN, is_active=True).count()
 
 
 def count_superadmins():

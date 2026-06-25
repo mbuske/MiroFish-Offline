@@ -6,8 +6,6 @@ from .db import Base
 ROLE_SUPERADMIN = "superadmin"
 ROLE_ACCOUNT_ADMIN = "account_admin"
 ROLE_USER = "user"
-# Backward-compat alias — removed in a later task.
-ROLE_ADMIN = ROLE_ACCOUNT_ADMIN
 
 
 class Account(Base):

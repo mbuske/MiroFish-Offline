@@ -23,6 +23,8 @@ def list_users():
         account_id = request.args.get("account_id")
     else:
         account_id = current_account_id()
+        if account_id is None:
+            return jsonify({"success": False, "error": "account context missing"}), 403
     return jsonify({"success": True, "users": [_u(u) for u in service.list_users(account_id=account_id)]})
 
 
@@ -34,6 +36,8 @@ def create_user():
         account_id = d.get("account_id")
     else:
         account_id = current_account_id()
+        if account_id is None:
+            return jsonify({"success": False, "error": "account context missing"}), 403
     role = d.get("role", ROLE_USER)
     if role not in _ALLOWED_ROLES:
         return jsonify({"success": False, "error": f"role must be one of {sorted(_ALLOWED_ROLES)}"}), 400

@@ -1,7 +1,7 @@
 """Admin-only branding write endpoints."""
 from flask import Blueprint, jsonify, request
 
-from app.auth.decorators import admin_required
+from app.auth.decorators import superadmin_required
 from app.auth.ownership import current_user_id
 from . import service as branding_service
 
@@ -11,7 +11,7 @@ branding_admin_bp = Blueprint(
 
 
 @branding_admin_bp.route("", methods=["POST"])
-@admin_required
+@superadmin_required
 def update_colors():
     d = request.get_json(silent=True) or {}
     try:
@@ -26,7 +26,7 @@ def update_colors():
 
 
 @branding_admin_bp.route("/logo", methods=["POST"])
-@admin_required
+@superadmin_required
 def upload_logo():
     f = request.files.get("file")
     if f is None:
@@ -39,7 +39,7 @@ def upload_logo():
 
 
 @branding_admin_bp.route("/favicon", methods=["POST"])
-@admin_required
+@superadmin_required
 def upload_favicon():
     f = request.files.get("file")
     if f is None:

@@ -1,13 +1,21 @@
+"""Tests for data-isolation helpers.
+
+The legacy owner-based helpers (is_admin, can_access, require_owner_or_admin)
+were removed in Task 13.  Tests that exercised those helpers have been replaced
+with account-scoped equivalents using ``app.auth.accounts``.
+"""
 import pytest
 from contextlib import contextmanager
 from flask import Flask, g
-from app.auth import ownership
-from app.auth.models import ROLE_ADMIN, ROLE_USER
+
+from app.auth import accounts as account_access
+from app.auth.models import ROLE_SUPERADMIN, ROLE_ACCOUNT_ADMIN, ROLE_USER
 
 
 class _U:
-    def __init__(self, uid, role):
+    def __init__(self, uid, role, account_id=None):
         self.id, self.role = uid, role
+        self.account_id = account_id
 
 
 @contextmanager
@@ -17,40 +25,43 @@ def _ctx(app, user):
         yield
 
 
-def test_owner_can_access():
+# ---------------------------------------------------------------------------
+# Account-scoped access helpers (replaced owner-based helpers)
+# ---------------------------------------------------------------------------
+
+def test_account_member_can_access_own_account():
     app = Flask(__name__)
-    with _ctx(app, _U("u1", ROLE_USER)):
-        assert ownership.can_access("u1") is True
-        assert ownership.can_access("u2") is False
+    with _ctx(app, _U("u1", ROLE_USER, account_id="accA")):
+        assert account_access.can_access_account("accA") is True
+        assert account_access.can_access_account("accB") is False
 
 
-def test_admin_can_access_anything():
+def test_superadmin_can_access_any_account():
     app = Flask(__name__)
-    with _ctx(app, _U("a", ROLE_ADMIN)):
-        assert ownership.can_access("u2") is True
-        assert ownership.can_access(None) is True
+    with _ctx(app, _U("sa", ROLE_SUPERADMIN, account_id=None)):
+        assert account_access.can_access_account("accX") is True
+        assert account_access.can_access_account(None) is True
 
 
-def test_require_raises_for_foreign():
+def test_require_account_access_raises_for_foreign():
     app = Flask(__name__)
-    with _ctx(app, _U("u1", ROLE_USER)):
+    with _ctx(app, _U("u1", ROLE_USER, account_id="accA")):
         with pytest.raises(PermissionError):
-            ownership.require_owner_or_admin("u2")
+            account_access.require_account_access("accB")
 
 
-def test_nonadmin_denied_legacy_unowned():
+def test_non_account_member_denied_for_none_account():
     app = Flask(__name__)
-    with _ctx(app, _U("u1", ROLE_USER)):
-        assert ownership.can_access(None) is False  # legacy/unowned → non-admin denied
+    with _ctx(app, _U("u1", ROLE_USER, account_id="accA")):
+        assert account_access.can_access_account(None) is False
 
 
-def test_anonymous_user_denied():
+def test_anonymous_user_denied_account_access():
     app = Flask(__name__)
-    with _ctx(app, None):                       # no authenticated user
-        assert ownership.can_access("u1") is False
-        assert ownership.can_access(None) is False
+    with _ctx(app, None):
+        assert account_access.can_access_account("accA") is False
         with pytest.raises(PermissionError):
-            ownership.require_owner_or_admin("u1")
+            account_access.require_account_access("accA")
 
 
 def test_list_projects_filters_by_account(tmp_path, monkeypatch):
@@ -63,19 +74,6 @@ def test_list_projects_filters_by_account(tmp_path, monkeypatch):
     assert {p.project_id for p in mine} == {p1.project_id}
     everything = pj.ProjectManager.list_projects(include_all=True)
     assert {p.project_id for p in everything} >= {p1.project_id, p2.project_id}
-
-
-def test_list_simulations_filters_by_owner(tmp_path, monkeypatch):
-    from app.services.simulation_manager import SimulationManager
-    m = SimulationManager()
-    m.SIMULATION_DATA_DIR = str(tmp_path)
-    s1 = m.create_simulation(project_id="p1", graph_id="g1", owner_id="u1")
-    m.create_simulation(project_id="p2", graph_id="g2", owner_id="u2")
-    mine = m.list_simulations(owner_id="u1")
-    assert len(mine) == 1
-    assert all(s.owner_id == "u1" for s in mine)
-    everything = m.list_simulations(include_all=True)
-    assert len(everything) == 2
 
 
 def test_list_simulations_filters_by_account(tmp_path, monkeypatch):
@@ -92,43 +90,50 @@ def test_list_simulations_filters_by_account(tmp_path, monkeypatch):
     assert {s.simulation_id for s in everything} >= {s1.simulation_id, s2.simulation_id}
 
 
-def test_chat_route_ownership_guard_via_require_owner_or_admin():
-    """Verify the logic that guards POST /chat: require_owner_or_admin raises for
-    a foreign owner_id, so a non-owner would receive 404 instead of graph access.
-    Tested at the service layer (no Neo4j required)."""
-    app = Flask(__name__)
-    with _ctx(app, _U("u1", ROLE_USER)):
-        # Owner can access their own simulation
-        ownership.require_owner_or_admin("u1")  # must not raise
+def test_list_simulations_include_all_returns_all(tmp_path, monkeypatch):
+    from app.services.simulation_manager import SimulationManager
+    m = SimulationManager()
+    m.SIMULATION_DATA_DIR = str(tmp_path)
+    s1 = m.create_simulation(project_id="p1", graph_id="g1", owner_id="u1", account_id="accA")
+    m.create_simulation(project_id="p2", graph_id="g2", owner_id="u2", account_id="accB")
+    everything = m.list_simulations(include_all=True)
+    assert len(everything) == 2
 
-        # Non-owner is rejected — this is what the chat route catches and converts to 404
+
+def test_chat_route_account_guard_via_require_account_access():
+    """Verify the account-scoped guard: require_account_access raises for a
+    different account, so a user from another account is denied graph access."""
+    app = Flask(__name__)
+    with _ctx(app, _U("u1", ROLE_USER, account_id="accA")):
+        # Same account — must not raise
+        account_access.require_account_access("accA")
+
+        # Different account — raises PermissionError
         with pytest.raises(PermissionError):
-            ownership.require_owner_or_admin("u2")
+            account_access.require_account_access("accB")
 
-    # Admin can access any simulation
-    with _ctx(app, _U("admin", ROLE_ADMIN)):
-        ownership.require_owner_or_admin("u2")  # must not raise
+    # Superadmin can access any account
+    with _ctx(app, _U("sa", ROLE_SUPERADMIN, account_id=None)):
+        account_access.require_account_access("accB")  # must not raise
 
 
-def test_check_report_status_ownership_via_can_access():
-    """Verify the logic that guards GET /check/<simulation_id>: can_access returns
-    False for a foreign owner_id, so report is set to None (no existence leak)."""
+def test_check_report_status_account_guard_via_can_access_account():
+    """Verify the account-scoped guard used to gate report visibility."""
     app = Flask(__name__)
-    with _ctx(app, _U("u1", ROLE_USER)):
-        assert ownership.can_access("u1") is True   # owner sees report
-        assert ownership.can_access("u2") is False  # non-owner → report hidden
+    with _ctx(app, _U("u1", ROLE_USER, account_id="accA")):
+        assert account_access.can_access_account("accA") is True   # same account → report visible
+        assert account_access.can_access_account("accB") is False  # different account → hidden
 
 
-def test_generate_status_ownership_via_can_access():
-    """Verify the logic that guards POST /generate/status: can_access gates the
-    early-return so a non-owner falls through to the task_id path."""
+def test_generate_status_account_guard_via_can_access_account():
+    """Verify the account-scoped guard used to gate generate-status early return."""
     app = Flask(__name__)
-    with _ctx(app, _U("u1", ROLE_USER)):
-        assert ownership.can_access("u1") is True   # owner gets completed payload
-        assert ownership.can_access("u2") is False  # non-owner falls through
+    with _ctx(app, _U("u1", ROLE_USER, account_id="accA")):
+        assert account_access.can_access_account("accA") is True   # same account gets completed payload
+        assert account_access.can_access_account("accB") is False  # different account falls through
 
 
-def test_list_reports_filters_by_owner(tmp_path, monkeypatch):
+def test_list_reports_filters_by_account(tmp_path, monkeypatch):
     from app.services.report_agent import ReportManager, Report, ReportStatus
     monkeypatch.setattr(ReportManager, "REPORTS_DIR", str(tmp_path), raising=False)
     r1 = Report(
@@ -137,21 +142,23 @@ def test_list_reports_filters_by_owner(tmp_path, monkeypatch):
         graph_id="g1",
         simulation_requirement="req1",
         status=ReportStatus.COMPLETED,
+        owner_id="u1",
+        account_id="accA",
     )
-    r1.owner_id = "u1"
     r2 = Report(
         report_id="r2",
         simulation_id="s2",
         graph_id="g2",
         simulation_requirement="req2",
         status=ReportStatus.COMPLETED,
+        owner_id="u2",
+        account_id="accB",
     )
-    r2.owner_id = "u2"
     ReportManager.save_report(r1)
     ReportManager.save_report(r2)
-    mine = ReportManager.list_reports(owner_id="u1")
+    mine = ReportManager.list_reports(account_id="accA")
     assert len(mine) == 1
-    assert all(x.owner_id == "u1" for x in mine)
+    assert all(x.account_id == "accA" for x in mine)
     everything = ReportManager.list_reports(include_all=True)
     assert len(everything) == 2
 
@@ -339,36 +346,6 @@ def test_get_graph_owner_returns_none_for_legacy(monkeypatch):
     st._driver = FakeDriver()
     result = st.get_graph_owner("g_legacy")
     assert result is None
-
-
-def test_list_reports_filters_by_account(tmp_path, monkeypatch):
-    from app.services.report_agent import ReportManager, Report, ReportStatus
-    monkeypatch.setattr(ReportManager, "REPORTS_DIR", str(tmp_path), raising=False)
-    r1 = Report(
-        report_id="r1",
-        simulation_id="s1",
-        graph_id="g1",
-        simulation_requirement="req1",
-        status=ReportStatus.COMPLETED,
-        owner_id="u1",
-        account_id="accA",
-    )
-    r2 = Report(
-        report_id="r2",
-        simulation_id="s2",
-        graph_id="g2",
-        simulation_requirement="req2",
-        status=ReportStatus.COMPLETED,
-        owner_id="u2",
-        account_id="accB",
-    )
-    ReportManager.save_report(r1)
-    ReportManager.save_report(r2)
-    mine = ReportManager.list_reports(account_id="accA")
-    assert len(mine) == 1
-    assert all(x.account_id == "accA" for x in mine)
-    everything = ReportManager.list_reports(include_all=True)
-    assert len(everything) == 2
 
 
 def test_account_access_helpers():

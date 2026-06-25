@@ -43,8 +43,8 @@ def test_login_endpoint_is_public(app):
     ).status_code == 200
 
 
-def test_admin_required_blocks_non_admin(tmp_path, monkeypatch):
-    from app.auth.decorators import admin_required
+def test_account_admin_required_blocks_non_admin(tmp_path, monkeypatch):
+    from app.auth.decorators import account_admin_required
     monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
     monkeypatch.setattr(Config, "API_TOKEN", "")
     authdb.init_db(Config.AUTH_DB_PATH)
@@ -53,7 +53,7 @@ def test_admin_required_blocks_non_admin(tmp_path, monkeypatch):
     app.config.from_object(Config)
 
     @app.route("/api/admin/ping")
-    @admin_required
+    @account_admin_required
     def ping():
         return jsonify({"ok": True})
 

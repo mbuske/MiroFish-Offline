@@ -210,7 +210,7 @@ class ProjectManager:
         return Project.from_dict(data)
 
     @classmethod
-    def list_projects(cls, limit: int = 50, owner_id: str = None,
+    def list_projects(cls, limit: int = 50,
                       account_id: str = None,
                       include_all: bool = False) -> List[Project]:
         """
@@ -218,7 +218,6 @@ class ProjectManager:
 
         Args:
             limit: Result count limit
-            owner_id: (legacy/audit) kept for backward compatibility — not used for filtering
             account_id: Filter to this account's projects (ignored when include_all=True)
             include_all: If True, return all projects regardless of account (superadmin use)
 

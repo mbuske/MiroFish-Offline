@@ -6,7 +6,7 @@ from flask import Flask
 from app.auth import db as authdb, service as auth_service
 from app.auth.routes import auth_bp
 from app.auth.admin_routes import admin_bp
-from app.auth.models import ROLE_ACCOUNT_ADMIN
+from app.auth.models import ROLE_SUPERADMIN
 from app.security import register_auth
 from app.config import Config
 import app.branding.service as branding_service
@@ -47,8 +47,8 @@ def public_client(auth_db):
 
 @pytest.fixture()
 def admin_client(auth_db):
-    """Flask test client logged in as admin."""
-    auth_service.create_user("admin@x.de", "adminpw", role=ROLE_ACCOUNT_ADMIN)
+    """Flask test client logged in as superadmin (branding writes require superadmin)."""
+    auth_service.create_user("admin@x.de", "adminpw", role=ROLE_SUPERADMIN)
     app = Flask(__name__)
     app.config.from_object(Config)
     app.register_blueprint(auth_bp)

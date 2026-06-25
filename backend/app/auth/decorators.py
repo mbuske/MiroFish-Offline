@@ -37,5 +37,3 @@ def account_admin_required(fn):
     return wrapper
 
 
-# Backward-compat alias; removed in a later task when admin_routes.py and branding/admin_routes.py migrate
-admin_required = account_admin_required

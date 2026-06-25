@@ -487,7 +487,6 @@ class SimulationManager:
     def list_simulations(
         self,
         project_id: Optional[str] = None,
-        owner_id: Optional[str] = None,
         account_id: Optional[str] = None,
         include_all: bool = False,
     ) -> List[SimulationState]:
@@ -495,11 +494,9 @@ class SimulationManager:
 
         Args:
             project_id: Optional project filter.
-            owner_id: When set (and include_all is False) only return simulations
-                      whose owner_id matches (legacy owner-scoped filter).
             account_id: When set (and include_all is False) only return simulations
-                        whose account_id matches (preferred account-scoped filter).
-            include_all: When True, return all simulations regardless of owner/account
+                        whose account_id matches (account-scoped filter).
+            include_all: When True, return all simulations regardless of account
                          (superadmin use).
         """
         simulations = []
@@ -523,10 +520,7 @@ class SimulationManager:
                     if project_id is not None and state.project_id != project_id:
                         continue
                     if not include_all:
-                        # Account-scoped filter takes precedence over legacy owner filter
                         if account_id is not None and state.account_id != account_id:
-                            continue
-                        elif account_id is None and owner_id is not None and state.owner_id != owner_id:
                             continue
                     simulations.append(state)
 
