@@ -1,5 +1,11 @@
+import pytest
 from datetime import datetime
-from app.auth import db as authdb
+from flask import Flask
+from app.auth import db as authdb, service
+from app.auth.routes import auth_bp
+from app.accounts.routes import superadmin_bp
+from app.security import register_auth
+from app.config import Config
 from app.auth.models import Account, User, ROLE_SUPERADMIN, ROLE_ACCOUNT_ADMIN, ROLE_USER
 from app.accounts import service as acct_service
 from app.auth import service as user_service
@@ -30,3 +36,41 @@ def test_account_service_crud_and_disable_revokes(tmp_path):
     assert row["name"] == "Acme" and row["user_count"] == 1
     acct_service.set_account_active(aid, False)
     assert user_service.resolve_session(token) is None  # member session revoked
+
+
+@pytest.fixture
+def su_client(tmp_path, monkeypatch):
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(Config, "API_TOKEN", "")
+    authdb.init_db(Config.AUTH_DB_PATH)
+    service.create_user("root@x.de", "rootpw12", role=ROLE_SUPERADMIN, account_id=None)
+    app = Flask(__name__); app.config.from_object(Config)
+    app.register_blueprint(auth_bp); app.register_blueprint(superadmin_bp)
+    register_auth(app)
+    c = app.test_client()
+    c.post("/api/auth/login", json={"email": "root@x.de", "password": "rootpw12"})
+    return c
+
+
+def test_superadmin_creates_account_and_admin(su_client):
+    r = su_client.post("/api/superadmin/accounts", json={"name": "Acme"})
+    assert r.status_code == 201
+    aid = r.get_json()["account"]["id"]
+    r2 = su_client.post(f"/api/superadmin/accounts/{aid}/admin",
+                        json={"email": "admin@acme.de", "password": "pw123456", "name": "A"})
+    assert r2.status_code == 201
+    users = su_client.get(f"/api/superadmin/accounts/{aid}/users").get_json()["users"]
+    assert any(u["email"] == "admin@acme.de" and u["role"] == "account_admin" for u in users)
+
+
+def test_superadmin_routes_forbidden_for_non_superadmin(tmp_path, monkeypatch):
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(Config, "API_TOKEN", "")
+    authdb.init_db(Config.AUTH_DB_PATH)
+    service.create_user("u@x.de", "pw12345", role=ROLE_USER, account_id="accA")
+    app = Flask(__name__); app.config.from_object(Config)
+    app.register_blueprint(auth_bp); app.register_blueprint(superadmin_bp)
+    register_auth(app)
+    c = app.test_client()
+    c.post("/api/auth/login", json={"email": "u@x.de", "password": "pw12345"})
+    assert c.get("/api/superadmin/accounts").status_code == 403
