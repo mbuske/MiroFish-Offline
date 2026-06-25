@@ -7,7 +7,9 @@ from datetime import datetime, timedelta
 import bcrypt
 
 from . import db as authdb
-from .models import User, UserSession, ROLE_ADMIN, ROLE_USER
+from .models import User, UserSession, ROLE_ADMIN, ROLE_USER, ROLE_SUPERADMIN, ROLE_ACCOUNT_ADMIN
+
+_VALID_ROLES = (ROLE_SUPERADMIN, ROLE_ACCOUNT_ADMIN, ROLE_USER)
 
 
 def hash_password(plain, cost=12):
@@ -30,12 +32,14 @@ def verify_password(plain, hashed):
         return False
 
 
-def create_user(email, password, name=None, role=ROLE_USER, created_by=None):
+def create_user(email, password, name=None, role=ROLE_USER, account_id=None, created_by=None):
     email = (email or "").strip().lower()
     if not email or "@" not in email:
         raise ValueError("invalid email")
     if not password:
         raise ValueError("password required")
+    if role not in _VALID_ROLES:
+        raise ValueError(f"invalid role: {role!r}")
     now = datetime.utcnow()
     uid = str(uuid.uuid4())
     with authdb.session_scope() as s:
@@ -43,7 +47,7 @@ def create_user(email, password, name=None, role=ROLE_USER, created_by=None):
             raise ValueError("email already exists")
         s.add(User(id=uid, email=email, name=name,
                    password_hash=hash_password(password),
-                   role=role, is_active=True,
+                   role=role, is_active=True, account_id=account_id,
                    created_at=now, updated_at=now, created_by=created_by))
     return uid
 
@@ -106,7 +110,7 @@ def revoke_user_sessions(user_id):
 
 
 def set_role(user_id, role):
-    if role not in (ROLE_ADMIN, ROLE_USER):
+    if role not in _VALID_ROLES:
         raise ValueError("invalid role")
     with authdb.session_scope() as s:
         u = s.query(User).filter_by(id=user_id).first()
@@ -138,14 +142,32 @@ def reset_password(user_id, new_password):
         u.updated_at = datetime.utcnow()
 
 
-def list_users():
+def list_users(account_id=None):
     with authdb.session_scope() as s:
-        users = s.query(User).order_by(User.created_at).all()
+        q = s.query(User).order_by(User.created_at)
+        if account_id is not None:
+            q = q.filter_by(account_id=account_id)
+        users = q.all()
         for u in users:
             s.expunge(u)
         return users
 
 
 def count_admins():
+    """Legacy: count active account_admins. Kept for seed.py — removed in a later task."""
     with authdb.session_scope() as s:
         return s.query(User).filter_by(role=ROLE_ADMIN, is_active=True).count()
+
+
+def count_superadmins():
+    """Count active superadmins."""
+    with authdb.session_scope() as s:
+        return s.query(User).filter_by(role=ROLE_SUPERADMIN, is_active=True).count()
+
+
+def count_account_admins(account_id):
+    """Count active account_admins in a given account."""
+    with authdb.session_scope() as s:
+        return (s.query(User)
+                .filter_by(role=ROLE_ACCOUNT_ADMIN, is_active=True, account_id=account_id)
+                .count())

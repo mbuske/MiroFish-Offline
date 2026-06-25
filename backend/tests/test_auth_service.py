@@ -143,3 +143,14 @@ def test_admin_ops_raise_for_missing_user(tmp_path):
         service.set_role("nope", ROLE_ACCOUNT_ADMIN)
     with pytest.raises(ValueError):
         service.reset_password("nope", "newpw")
+
+
+def test_create_user_with_account_and_list_filter(tmp_path):
+    authdb.init_db(str(tmp_path / "auth.db"))
+    service.create_user("a@x.de", "pw12345", role=ROLE_USER, account_id="accA")
+    service.create_user("b@x.de", "pw12345", role=ROLE_ACCOUNT_ADMIN, account_id="accA")
+    service.create_user("c@x.de", "pw12345", role=ROLE_USER, account_id="accB")
+    assert {u.email for u in service.list_users(account_id="accA")} == {"a@x.de", "b@x.de"}
+    assert len(service.list_users()) == 3
+    with pytest.raises(ValueError):
+        service.create_user("d@x.de", "pw12345", role="root", account_id="accA")
