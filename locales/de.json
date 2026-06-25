@@ -938,5 +938,21 @@
     "upload": "Hochladen",
     "save": "Speichern",
     "currentLogo": "Aktuelles Logo"
+  },
+  "accounts": {
+    "menuTitle": "Accounts",
+    "title": "Account-Verwaltung",
+    "name": "Account-Name",
+    "createAccount": "Account anlegen",
+    "active": "Aktiv",
+    "actions": "Aktionen",
+    "userCount": "Benutzer",
+    "createAdmin": "Admin anlegen",
+    "adminEmail": "Admin-E-Mail",
+    "adminName": "Admin-Name",
+    "adminPassword": "Admin-Passwort",
+    "cancel": "Abbrechen",
+    "noAccounts": "Noch keine Accounts.",
+    "accountName": "Account"
   }
 }

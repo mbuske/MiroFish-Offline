@@ -938,5 +938,21 @@
     "upload": "Upload",
     "save": "Save",
     "currentLogo": "Current logo"
+  },
+  "accounts": {
+    "menuTitle": "Accounts",
+    "title": "Account management",
+    "name": "Account name",
+    "createAccount": "Create account",
+    "active": "Active",
+    "actions": "Actions",
+    "userCount": "Users",
+    "createAdmin": "Create admin",
+    "adminEmail": "Admin email",
+    "adminName": "Admin name",
+    "adminPassword": "Admin password",
+    "cancel": "Cancel",
+    "noAccounts": "No accounts yet.",
+    "accountName": "Account"
   }
 }
