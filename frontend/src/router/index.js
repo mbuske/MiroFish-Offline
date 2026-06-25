@@ -60,6 +60,12 @@ const routes = [
     name: 'BrandingSettings',
     component: () => import('@/views/BrandingSettings.vue'),
     meta: { admin: true }
+  },
+  {
+    path: '/superadmin/accounts',
+    name: 'SuperadminAccounts',
+    component: () => import('@/views/SuperadminAccounts.vue'),
+    meta: { superadmin: true }
   }
 ]
 
@@ -73,7 +79,8 @@ router.beforeEach(async (to) => {
   if (!auth.ready.value) await auth.fetchMe()
   if (to.meta.public) return true
   if (!auth.isAuthenticated.value) return { path: '/login', query: { redirect: to.fullPath } }
-  if (to.meta.admin && !auth.isAdmin.value) return { path: '/' }
+  if (to.meta.superadmin && !auth.isSuperadmin.value) return { path: '/' }
+  if (to.meta.admin && !(auth.isAccountAdmin.value || auth.isSuperadmin.value)) return { path: '/' }
   return true
 })
 
