@@ -20,10 +20,11 @@ def backfill(admin_id: str) -> dict:
         admin_id: The user ID of the seed admin.
 
     Returns:
-        A dict with keys ``projects``, ``simulations``, ``reports`` whose
-        values are the count of records updated (0 on a second idempotent run).
+        A dict with keys ``projects``, ``simulations``, ``reports``, ``graphs``
+        whose values are the count of records updated (0 on a second idempotent
+        run).
     """
-    counts = {"projects": 0, "simulations": 0, "reports": 0}
+    counts = {"projects": 0, "simulations": 0, "reports": 0, "graphs": 0}
 
     # ── Projects ─────────────────────────────────────────────────────────────
     for p in ProjectManager.list_projects(limit=10_000, include_all=True):
@@ -50,6 +51,26 @@ def backfill(admin_id: str) -> dict:
             r.owner_id = admin_id
             ReportManager.save_report(r)
             counts["reports"] += 1
+
+    # ── Graphs (Neo4j root nodes) ───────────────────────────────────────────
+    # Neo4j may be down during migration — log and continue, counting 0.
+    storage = None
+    try:
+        from app.storage.neo4j_storage import Neo4jStorage
+
+        storage = Neo4jStorage()
+        counts["graphs"] = storage.set_graph_owner_if_missing(admin_id)
+    except Exception as e:
+        print(f"Skipping graph-owner backfill (Neo4j unavailable): {e}")
+    finally:
+        # Always release the driver to avoid leaking connections (and the
+        # driver-destructor DeprecationWarning) when Neo4j is reachable but a
+        # later step fails.
+        if storage is not None:
+            try:
+                storage.close()
+            except Exception:
+                pass
 
     return counts
 

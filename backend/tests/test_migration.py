@@ -136,10 +136,11 @@ def test_backfill_reports(patched_dirs):
 # ── Return shape guarantee ────────────────────────────────────────────────────
 
 def test_backfill_returns_required_keys(patched_dirs):
-    """backfill() always returns a dict with projects/simulations/reports keys."""
+    """backfill() always returns a dict with projects/simulations/reports/graphs keys."""
     mod = _load_migrate_ownership()
     counts = mod.backfill("admin-id")
 
     assert "projects" in counts
     assert "simulations" in counts
     assert "reports" in counts
+    assert "graphs" in counts

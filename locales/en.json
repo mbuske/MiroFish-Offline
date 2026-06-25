@@ -346,6 +346,7 @@
     "buildFailed": "Build failed: {error}",
     "taskNotFound": "Task not found: {id}",
     "graphDeleted": "Graph deleted: {id}",
+    "graphNotFound": "Graph not found: {id}",
     "entityNotFound": "Entity not found: {id}",
     "graphNotBuilt": "Graph not yet built. Please call /api/graph/build first.",
     "requireSimulationId": "Please provide simulation_id",

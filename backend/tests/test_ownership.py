@@ -142,6 +142,103 @@ def test_list_reports_filters_by_owner(tmp_path, monkeypatch):
     assert len(everything) == 2
 
 
+def test_backfill_includes_graphs_key_and_invokes_graph_backfill(tmp_path, monkeypatch):
+    """backfill() must return a ``graphs`` count and drive the graph-owner
+    backfill via Neo4jStorage.set_graph_owner_if_missing — verified with a fake
+    storage so no live Neo4j is required."""
+    import app.storage.neo4j_storage as ns
+    from app.models import project as pj
+    from app.services import simulation_manager as smm
+    from app.services import report_agent as ra
+    from scripts import migrate_ownership
+
+    # Point file-backed managers at empty temp dirs → 0 file-resource updates.
+    monkeypatch.setattr(pj.ProjectManager, "PROJECTS_DIR", str(tmp_path / "proj"), raising=False)
+    sm = smm.SimulationManager()
+    monkeypatch.setattr(sm, "SIMULATION_DATA_DIR", str(tmp_path / "sim"), raising=False)
+    monkeypatch.setattr(smm, "SimulationManager", lambda *a, **k: sm)
+    monkeypatch.setattr(ra.ReportManager, "REPORTS_DIR", str(tmp_path / "rep"), raising=False)
+
+    captured = {}
+
+    class FakeStorage:
+        def __init__(self, *a, **k):
+            pass
+
+        def set_graph_owner_if_missing(self, admin_id):
+            captured["admin_id"] = admin_id
+            return 3
+
+    monkeypatch.setattr(ns, "Neo4jStorage", FakeStorage)
+
+    result = migrate_ownership.backfill("admin-1")
+
+    assert "graphs" in result
+    assert result["graphs"] == 3
+    assert captured.get("admin_id") == "admin-1"
+
+
+def test_backfill_graph_step_tolerates_neo4j_down(tmp_path, monkeypatch):
+    """If Neo4j is unavailable, backfill logs and continues with graphs=0."""
+    import app.storage.neo4j_storage as ns
+    from app.models import project as pj
+    from app.services import simulation_manager as smm
+    from app.services import report_agent as ra
+    from scripts import migrate_ownership
+
+    monkeypatch.setattr(pj.ProjectManager, "PROJECTS_DIR", str(tmp_path / "proj"), raising=False)
+    sm = smm.SimulationManager()
+    monkeypatch.setattr(sm, "SIMULATION_DATA_DIR", str(tmp_path / "sim"), raising=False)
+    monkeypatch.setattr(smm, "SimulationManager", lambda *a, **k: sm)
+    monkeypatch.setattr(ra.ReportManager, "REPORTS_DIR", str(tmp_path / "rep"), raising=False)
+
+    class BoomStorage:
+        def __init__(self, *a, **k):
+            raise RuntimeError("Neo4j unavailable")
+
+    monkeypatch.setattr(ns, "Neo4jStorage", BoomStorage)
+
+    result = migrate_ownership.backfill("admin-1")
+    assert result["graphs"] == 0
+
+
+def test_set_graph_owner_if_missing_runs_backfill_cypher(monkeypatch):
+    """Verify the Cypher targets unowned Graph nodes and returns the count."""
+    import app.storage.neo4j_storage as ns
+
+    captured = {}
+
+    class FakeRecord:
+        def __getitem__(self, key):
+            return 5 if key == "updated" else None
+
+    class FakeTx:
+        def run(self, query, **params):
+            captured["query"] = query
+            captured["params"] = params
+
+            class R:
+                def single(self_inner): return FakeRecord()
+            return R()
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute_write(self, func):
+            return func(FakeTx())
+
+    class FakeDriver:
+        def session(self): return FakeSession()
+
+    st = ns.Neo4jStorage.__new__(ns.Neo4jStorage)
+    st._driver = FakeDriver()
+    result = st.set_graph_owner_if_missing("admin-1")
+
+    assert result == 5
+    assert "owner_id IS NULL" in captured["query"]
+    assert captured["params"]["admin"] == "admin-1"
+
+
 def test_create_graph_includes_owner_param(monkeypatch):
     """Verify owner_id is passed as a query param and referenced in the Cypher."""
     import app.storage.neo4j_storage as ns

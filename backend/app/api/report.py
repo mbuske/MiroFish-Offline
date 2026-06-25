@@ -18,6 +18,7 @@ from ..services.graph_tools import GraphToolsService
 from ..utils.logger import get_logger
 from ..utils import t, get_locale, set_locale
 from ..auth.ownership import current_user_id, is_admin, require_owner_or_admin, can_access
+from ..auth.graph_access import require_graph_owner_or_admin
 
 logger = get_logger('mirofish.api.report')
 
@@ -36,6 +37,11 @@ def generate_report():
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
         if not state:
+            return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
+
+        try:
+            require_owner_or_admin(state.owner_id)
+        except PermissionError:
             return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
 
         if not force_regenerate:
@@ -480,6 +486,10 @@ def search_graph_tool():
         limit = data.get('limit', 10)
         if not graph_id or not query:
             return jsonify({"success": False, "error": t('api.requireGraphIdAndQuery')}), 400
+        try:
+            require_graph_owner_or_admin(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
         storage = current_app.extensions.get('neo4j_storage')
         if not storage:
             raise ValueError("GraphStorage not initialized — check Neo4j connection")
@@ -498,6 +508,10 @@ def get_graph_statistics_tool():
         graph_id = data.get('graph_id')
         if not graph_id:
             return jsonify({"success": False, "error": t('api.requireGraphId')}), 400
+        try:
+            require_graph_owner_or_admin(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
         storage = current_app.extensions.get('neo4j_storage')
         if not storage:
             raise ValueError("GraphStorage not initialized — check Neo4j connection")

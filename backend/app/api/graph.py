@@ -19,6 +19,7 @@ from ..utils import t, get_locale, set_locale
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
 from ..auth.ownership import current_user_id, is_admin, require_owner_or_admin
+from ..auth.graph_access import require_graph_owner_or_admin
 
 # Get logger
 logger = get_logger('mirofish.api')
@@ -610,6 +611,11 @@ def get_graph_data(graph_id: str):
     Get graph data (nodes and edges)
     """
     try:
+        try:
+            require_graph_owner_or_admin(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+
         storage = _get_storage()
         builder = GraphBuilderService(storage=storage)
         graph_data = builder.get_graph_data(graph_id)
@@ -633,6 +639,11 @@ def delete_graph(graph_id: str):
     Delete graph
     """
     try:
+        try:
+            require_graph_owner_or_admin(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+
         storage = _get_storage()
         builder = GraphBuilderService(storage=storage)
         builder.delete_graph(graph_id)

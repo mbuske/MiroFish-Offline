@@ -346,6 +346,7 @@
     "buildFailed": "Aufbau fehlgeschlagen: {error}",
     "taskNotFound": "Aufgabe nicht gefunden: {id}",
     "graphDeleted": "Graph gelöscht: {id}",
+    "graphNotFound": "Graph nicht gefunden: {id}",
     "entityNotFound": "Entität nicht gefunden: {id}",
     "graphNotBuilt": "Graph noch nicht aufgebaut. Bitte rufen Sie zuerst /api/graph/build auf.",
     "requireSimulationId": "Bitte geben Sie simulation_id an",

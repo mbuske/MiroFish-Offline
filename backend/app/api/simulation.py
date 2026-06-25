@@ -18,6 +18,7 @@ from ..utils import t, get_locale, set_locale
 from ..utils.validation import validate_simulation_id, safe_join
 from ..models.project import ProjectManager
 from ..auth.ownership import current_user_id, is_admin, require_owner_or_admin
+from ..auth.graph_access import require_graph_owner_or_admin
 
 
 def _resolve_simulation_dir(simulation_id: str) -> str:
@@ -74,7 +75,12 @@ def get_graph_entities(graph_id: str):
         enrich = request.args.get('enrich', 'true').lower() == 'true'
         
         logger.info(f"Get knowledge graph entities: graph_id={graph_id}, entity_types={entity_types}, enrich={enrich}")
-        
+
+        try:
+            require_graph_owner_or_admin(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+
         storage = current_app.extensions.get('neo4j_storage')
         if not storage:
             raise ValueError("GraphStorage not initialized")
@@ -103,6 +109,11 @@ def get_graph_entities(graph_id: str):
 def get_entity_detail(graph_id: str, entity_uuid: str):
     """Get detailed information of a single entity"""
     try:
+        try:
+            require_graph_owner_or_admin(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.entityNotFound', id=entity_uuid)}), 404
+
         storage = current_app.extensions.get('neo4j_storage')
         if not storage:
             raise ValueError("GraphStorage not initialized")
@@ -134,7 +145,12 @@ def get_entities_by_type(graph_id: str, entity_type: str):
     """Get all entities of specified type"""
     try:
         enrich = request.args.get('enrich', 'true').lower() == 'true'
-        
+
+        try:
+            require_graph_owner_or_admin(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+
         storage = current_app.extensions.get('neo4j_storage')
         if not storage:
             raise ValueError("GraphStorage not initialized")
@@ -206,6 +222,22 @@ def create_simulation():
 
         project = ProjectManager.get_project(project_id)
         if not project:
+            return jsonify({
+                "success": False,
+                "error": t('api.projectNotFound', id=project_id)
+            }), 404
+
+        try:
+            require_owner_or_admin(project.owner_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.projectNotFound', id=project_id)
+            }), 404
+
+        # A simulation may only bind to the owned project's own graph.
+        requested_graph_id = data.get('graph_id')
+        if requested_graph_id and requested_graph_id != project.graph_id:
             return jsonify({
                 "success": False,
                 "error": t('api.projectNotFound', id=project_id)
@@ -1532,7 +1564,12 @@ def generate_profiles():
                 "success": False,
                 "error": t('api.requireGraphId')
             }), 400
-        
+
+        try:
+            require_graph_owner_or_admin(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+
         entity_types = data.get('entity_types')
         use_llm = data.get('use_llm', True)
         platform = data.get('platform', 'reddit')

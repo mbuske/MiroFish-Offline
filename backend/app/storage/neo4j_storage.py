@@ -50,12 +50,21 @@ class Neo4jStorage(GraphStorage):
         self._driver = GraphDatabase.driver(
             self._uri, auth=(self._user, self._password)
         )
-        self._embedding = embedding_service or EmbeddingService()
-        self._ner = ner_extractor or NERExtractor()
-        self._search = SearchService(self._embedding)
+        try:
+            self._embedding = embedding_service or EmbeddingService()
+            self._ner = ner_extractor or NERExtractor()
+            self._search = SearchService(self._embedding)
 
-        # Initialize schema (indexes, constraints)
-        self._ensure_schema()
+            # Initialize schema (indexes, constraints)
+            self._ensure_schema()
+        except Exception:
+            # If any post-driver init step fails, release the driver so we don't
+            # leak the connection (and trigger the destructor DeprecationWarning).
+            try:
+                self._driver.close()
+            except Exception:
+                pass
+            raise
 
     def close(self):
         """Close the Neo4j driver connection."""
@@ -143,6 +152,20 @@ class Neo4jStorage(GraphStorage):
 
         with self._driver.session() as session:
             return self._call_with_retry(session.execute_read, _read)
+
+    def set_graph_owner_if_missing(self, admin_id: str) -> int:
+        """Backfill owner_id on Graph root nodes that have none. Returns count updated."""
+        def _set(tx):
+            result = tx.run(
+                "MATCH (g:Graph) WHERE g.owner_id IS NULL "
+                "SET g.owner_id = $admin RETURN count(g) AS updated",
+                admin=admin_id,
+            )
+            record = result.single()
+            return record["updated"] if record else 0
+
+        with self._driver.session() as session:
+            return self._call_with_retry(session.execute_write, _set)
 
     def delete_graph(self, graph_id: str) -> None:
         def _delete(tx):
