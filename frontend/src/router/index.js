@@ -5,8 +5,15 @@ import SimulationView from '../views/SimulationView.vue'
 import SimulationRunView from '../views/SimulationRunView.vue'
 import ReportView from '../views/ReportView.vue'
 import InteractionView from '../views/InteractionView.vue'
+import { useAuth } from '@/stores/auth'
 
 const routes = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/Login.vue'),
+    meta: { public: true }
+  },
   {
     path: '/',
     name: 'Home',
@@ -47,6 +54,15 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+router.beforeEach(async (to) => {
+  const auth = useAuth()
+  if (!auth.ready.value) await auth.fetchMe()
+  if (to.meta.public) return true
+  if (!auth.isAuthenticated.value) return { path: '/login', query: { redirect: to.fullPath } }
+  if (to.meta.admin && !auth.isAdmin.value) return { path: '/' }
+  return true
 })
 
 export default router
