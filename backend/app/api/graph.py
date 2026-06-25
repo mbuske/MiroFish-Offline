@@ -18,6 +18,7 @@ from ..utils.logger import get_logger
 from ..utils import t, get_locale, set_locale
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
+from ..auth.ownership import current_user_id, is_admin, require_owner_or_admin
 
 # Get logger
 logger = get_logger('mirofish.api')
@@ -47,8 +48,16 @@ def get_project(project_id: str):
     Get project details
     """
     project = ProjectManager.get_project(project_id)
-    
+
     if not project:
+        return jsonify({
+            "success": False,
+            "error": t('api.projectNotFound', id=project_id)
+        }), 404
+
+    try:
+        require_owner_or_admin(project.owner_id)
+    except PermissionError:
         return jsonify({
             "success": False,
             "error": t('api.projectNotFound', id=project_id)
@@ -66,8 +75,12 @@ def list_projects():
     List all projects
     """
     limit = request.args.get('limit', 50, type=int)
-    projects = ProjectManager.list_projects(limit=limit)
-    
+    projects = ProjectManager.list_projects(
+        limit=limit,
+        owner_id=current_user_id(),
+        include_all=is_admin()
+    )
+
     return jsonify({
         "success": True,
         "data": [p.to_dict() for p in projects],
@@ -80,6 +93,22 @@ def delete_project(project_id: str):
     """
     Delete project
     """
+    project = ProjectManager.get_project(project_id)
+
+    if not project:
+        return jsonify({
+            "success": False,
+            "error": t('api.projectNotFound', id=project_id)
+        }), 404
+
+    try:
+        require_owner_or_admin(project.owner_id)
+    except PermissionError:
+        return jsonify({
+            "success": False,
+            "error": t('api.projectNotFound', id=project_id)
+        }), 404
+
     success = ProjectManager.delete_project(project_id)
 
     if not success:
@@ -102,6 +131,14 @@ def reset_project(project_id: str):
     project = ProjectManager.get_project(project_id)
 
     if not project:
+        return jsonify({
+            "success": False,
+            "error": t('api.projectNotFound', id=project_id)
+        }), 404
+
+    try:
+        require_owner_or_admin(project.owner_id)
+    except PermissionError:
         return jsonify({
             "success": False,
             "error": t('api.projectNotFound', id=project_id)
@@ -181,7 +218,7 @@ def generate_ontology():
             }), 400
 
         # Create project
-        project = ProjectManager.create_project(name=project_name)
+        project = ProjectManager.create_project(name=project_name, owner_id=current_user_id())
         project.simulation_requirement = simulation_requirement
         logger.info(f"Project created: {project.project_id}")
         
@@ -305,6 +342,14 @@ def build_graph():
         # Get project
         project = ProjectManager.get_project(project_id)
         if not project:
+            return jsonify({
+                "success": False,
+                "error": t('api.projectNotFound', id=project_id)
+            }), 404
+
+        try:
+            require_owner_or_admin(project.owner_id)
+        except PermissionError:
             return jsonify({
                 "success": False,
                 "error": t('api.projectNotFound', id=project_id)

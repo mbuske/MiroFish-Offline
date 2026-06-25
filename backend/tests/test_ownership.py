@@ -51,3 +51,15 @@ def test_anonymous_user_denied():
         assert ownership.can_access(None) is False
         with pytest.raises(PermissionError):
             ownership.require_owner_or_admin("u1")
+
+
+def test_list_projects_filters_by_owner(tmp_path, monkeypatch):
+    from app.models import project as pj
+    monkeypatch.setattr(pj.ProjectManager, "PROJECTS_DIR", str(tmp_path), raising=False)
+    # create two projects with different owners
+    p1 = pj.ProjectManager.create_project("P1", owner_id="u1")
+    p2 = pj.ProjectManager.create_project("P2", owner_id="u2")
+    mine = pj.ProjectManager.list_projects(owner_id="u1")
+    assert {p.project_id for p in mine} == {p1.project_id}
+    everything = pj.ProjectManager.list_projects(include_all=True)
+    assert {p.project_id for p in everything} >= {p1.project_id, p2.project_id}

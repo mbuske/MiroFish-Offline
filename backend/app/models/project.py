@@ -52,6 +52,9 @@ class Project:
     # Error information
     error: Optional[str] = None
 
+    # Ownership
+    owner_id: Optional[str] = None
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
         return {
@@ -69,7 +72,8 @@ class Project:
             "simulation_requirement": self.simulation_requirement,
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
-            "error": self.error
+            "error": self.error,
+            "owner_id": self.owner_id
         }
     
     @classmethod
@@ -94,7 +98,8 @@ class Project:
             simulation_requirement=data.get('simulation_requirement'),
             chunk_size=data.get('chunk_size', 500),
             chunk_overlap=data.get('chunk_overlap', 50),
-            error=data.get('error')
+            error=data.get('error'),
+            owner_id=data.get('owner_id')
         )
 
 
@@ -130,12 +135,13 @@ class ProjectManager:
         return os.path.join(cls._get_project_dir(project_id), 'extracted_text.txt')
 
     @classmethod
-    def create_project(cls, name: str = "Unnamed Project") -> Project:
+    def create_project(cls, name: str = "Unnamed Project", owner_id: str = None) -> Project:
         """
         Create new project
 
         Args:
             name: Project name
+            owner_id: ID of the user creating the project (for ownership)
 
         Returns:
             Newly created Project object
@@ -152,6 +158,7 @@ class ProjectManager:
             created_at=now,
             updated_at=now
         )
+        project.owner_id = owner_id
 
         # Create project directory structure
         project_dir = cls._get_project_dir(project_id)
@@ -195,12 +202,15 @@ class ProjectManager:
         return Project.from_dict(data)
 
     @classmethod
-    def list_projects(cls, limit: int = 50) -> List[Project]:
+    def list_projects(cls, limit: int = 50, owner_id: str = None,
+                      include_all: bool = False) -> List[Project]:
         """
-        List all projects
+        List projects
 
         Args:
             limit: Result count limit
+            owner_id: Filter to this owner's projects (ignored when include_all=True)
+            include_all: If True, return all projects regardless of owner (admin use)
 
         Returns:
             Project list, sorted by creation time (descending)
@@ -212,6 +222,10 @@ class ProjectManager:
             project = cls.get_project(project_id)
             if project:
                 projects.append(project)
+
+        # Apply owner filter unless include_all is set
+        if not include_all and owner_id is not None:
+            projects = [p for p in projects if p.owner_id == owner_id]
 
         # Sort by creation time (descending)
         projects.sort(key=lambda p: p.created_at, reverse=True)
