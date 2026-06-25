@@ -17,7 +17,7 @@ from ..models.task import TaskManager, TaskStatus
 from ..services.graph_tools import GraphToolsService
 from ..utils.logger import get_logger
 from ..utils import t, get_locale, set_locale
-from ..auth.ownership import current_user_id, is_admin, require_owner_or_admin
+from ..auth.ownership import current_user_id, is_admin, require_owner_or_admin, can_access
 
 logger = get_logger('mirofish.api.report')
 
@@ -130,7 +130,7 @@ def get_generate_status():
 
         if simulation_id:
             existing_report = ReportManager.get_report_by_simulation(simulation_id)
-            if existing_report and existing_report.status == ReportStatus.COMPLETED:
+            if existing_report and existing_report.status == ReportStatus.COMPLETED and can_access(existing_report.owner_id):
                 return jsonify({"success": True, "data": {
                     "simulation_id": simulation_id,
                     "report_id": existing_report.report_id,
@@ -271,6 +271,11 @@ def chat_with_report_agent():
         if not state:
             return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
 
+        try:
+            require_owner_or_admin(state.owner_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
+
         project = ProjectManager.get_project(state.project_id)
         if not project:
             return jsonify({"success": False, "error": t('api.projectNotFound', id=state.project_id)}), 404
@@ -372,6 +377,8 @@ def get_single_section(report_id: str, section_index: int):
 def check_report_status(simulation_id: str):
     try:
         report = ReportManager.get_report_by_simulation(simulation_id)
+        if report is not None and not can_access(report.owner_id):
+            report = None
         has_report = report is not None
         report_status = report.status.value if report and hasattr(report.status, 'value') else (report.status if report else None)
         report_id = report.report_id if report else None

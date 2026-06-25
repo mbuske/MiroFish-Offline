@@ -78,6 +78,42 @@ def test_list_simulations_filters_by_owner(tmp_path, monkeypatch):
     assert len(everything) == 2
 
 
+def test_chat_route_ownership_guard_via_require_owner_or_admin():
+    """Verify the logic that guards POST /chat: require_owner_or_admin raises for
+    a foreign owner_id, so a non-owner would receive 404 instead of graph access.
+    Tested at the service layer (no Neo4j required)."""
+    app = Flask(__name__)
+    with _ctx(app, _U("u1", ROLE_USER)):
+        # Owner can access their own simulation
+        ownership.require_owner_or_admin("u1")  # must not raise
+
+        # Non-owner is rejected — this is what the chat route catches and converts to 404
+        with pytest.raises(PermissionError):
+            ownership.require_owner_or_admin("u2")
+
+    # Admin can access any simulation
+    with _ctx(app, _U("admin", ROLE_ADMIN)):
+        ownership.require_owner_or_admin("u2")  # must not raise
+
+
+def test_check_report_status_ownership_via_can_access():
+    """Verify the logic that guards GET /check/<simulation_id>: can_access returns
+    False for a foreign owner_id, so report is set to None (no existence leak)."""
+    app = Flask(__name__)
+    with _ctx(app, _U("u1", ROLE_USER)):
+        assert ownership.can_access("u1") is True   # owner sees report
+        assert ownership.can_access("u2") is False  # non-owner → report hidden
+
+
+def test_generate_status_ownership_via_can_access():
+    """Verify the logic that guards POST /generate/status: can_access gates the
+    early-return so a non-owner falls through to the task_id path."""
+    app = Flask(__name__)
+    with _ctx(app, _U("u1", ROLE_USER)):
+        assert ownership.can_access("u1") is True   # owner gets completed payload
+        assert ownership.can_access("u2") is False  # non-owner falls through
+
+
 def test_list_reports_filters_by_owner(tmp_path, monkeypatch):
     from app.services.report_agent import ReportManager, Report, ReportStatus
     monkeypatch.setattr(ReportManager, "REPORTS_DIR", str(tmp_path), raising=False)
