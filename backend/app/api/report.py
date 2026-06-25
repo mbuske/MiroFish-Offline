@@ -19,7 +19,7 @@ from ..utils.logger import get_logger
 from ..utils import t, get_locale, set_locale
 from ..auth.ownership import current_user_id
 from ..auth.accounts import current_account_id, is_superadmin, require_account_access, can_access_account
-from ..auth.graph_access import require_graph_owner_or_admin
+from ..auth.graph_access import require_graph_account_access
 
 logger = get_logger('mirofish.api.report')
 
@@ -491,7 +491,7 @@ def search_graph_tool():
         if not graph_id or not query:
             return jsonify({"success": False, "error": t('api.requireGraphIdAndQuery')}), 400
         try:
-            require_graph_owner_or_admin(graph_id)
+            require_graph_account_access(graph_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
         storage = current_app.extensions.get('neo4j_storage')
@@ -513,7 +513,7 @@ def get_graph_statistics_tool():
         if not graph_id:
             return jsonify({"success": False, "error": t('api.requireGraphId')}), 400
         try:
-            require_graph_owner_or_admin(graph_id)
+            require_graph_account_access(graph_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
         storage = current_app.extensions.get('neo4j_storage')

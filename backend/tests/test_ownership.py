@@ -396,3 +396,138 @@ def test_account_access_helpers():
     with app.test_request_context():
         g.current_user = None
         assert accounts.can_access_account("accA") is False
+
+
+# ---------------------------------------------------------------------------
+# Task-12: account_id on Graph root node
+# ---------------------------------------------------------------------------
+
+def test_create_graph_includes_account_id_param(monkeypatch):
+    """Verify account_id is passed as a query param and referenced in the Cypher."""
+    import app.storage.neo4j_storage as ns
+
+    captured = {}
+
+    class FakeTx:
+        def run(self, query, **params):
+            if "CREATE" in query and "Graph" in query:
+                captured["query"] = query
+                captured["params"] = params
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute_write(self, func):
+            return func(FakeTx())
+        def execute_read(self, func):
+            return func(FakeTx())
+
+    class FakeDriver:
+        def session(self): return FakeSession()
+
+    st = ns.Neo4jStorage.__new__(ns.Neo4jStorage)
+    st._driver = FakeDriver()
+    st.create_graph("G", owner_id="u1", account_id="accA")
+
+    assert captured.get("params", {}).get("account_id") == "accA", \
+        "account_id must be passed as a query parameter"
+    assert "account_id" in captured.get("query", ""), \
+        "account_id must appear in the Cypher query string"
+
+
+def test_get_graph_account_returns_account_id(monkeypatch):
+    """Verify get_graph_account returns the account_id stored on the Graph root node."""
+    import app.storage.neo4j_storage as ns
+
+    class FakeRecord:
+        def __getitem__(self, key):
+            return "accA" if key == "account_id" else None
+
+    class FakeTx:
+        def run(self, query, **params):
+            class R:
+                def single(self_inner): return FakeRecord()
+            return R()
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute_read(self, func):
+            return func(FakeTx())
+
+    class FakeDriver:
+        def session(self): return FakeSession()
+
+    st = ns.Neo4jStorage.__new__(ns.Neo4jStorage)
+    st._driver = FakeDriver()
+    result = st.get_graph_account("g1")
+    assert result == "accA"
+
+
+def test_get_graph_account_returns_none_for_legacy(monkeypatch):
+    """Verify get_graph_account returns None when account_id is absent (legacy graph)."""
+    import app.storage.neo4j_storage as ns
+
+    class FakeTx:
+        def run(self, query, **params):
+            class R:
+                def single(self_inner): return None
+            return R()
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute_read(self, func):
+            return func(FakeTx())
+
+    class FakeDriver:
+        def session(self): return FakeSession()
+
+    st = ns.Neo4jStorage.__new__(ns.Neo4jStorage)
+    st._driver = FakeDriver()
+    result = st.get_graph_account("g_legacy")
+    assert result is None
+
+
+def test_require_graph_account_access_passes_same_account():
+    """require_graph_account_access must pass when graph account matches current user account."""
+    from flask import Flask, g, current_app
+    from app.auth import graph_access
+    from app.auth.models import ROLE_USER
+
+    class _U:
+        def __init__(self, role, account_id):
+            self.role, self.account_id = role, account_id
+
+    class _FakeStorage:
+        def get_graph_account(self, graph_id):
+            return "accA"
+
+    app = Flask(__name__)
+    with app.test_request_context():
+        g.current_user = _U(ROLE_USER, "accA")
+        current_app.extensions['neo4j_storage'] = _FakeStorage()
+        graph_access.require_graph_account_access("g1")  # must not raise
+
+
+def test_require_graph_account_access_raises_for_foreign_account():
+    """require_graph_account_access must raise for a user from a different account."""
+    import pytest
+    from flask import Flask, g, current_app
+    from app.auth import graph_access
+    from app.auth.models import ROLE_USER
+
+    class _U:
+        def __init__(self, role, account_id):
+            self.role, self.account_id = role, account_id
+
+    class _FakeStorage:
+        def get_graph_account(self, graph_id):
+            return "accB"
+
+    app = Flask(__name__)
+    with app.test_request_context():
+        g.current_user = _U(ROLE_USER, "accA")
+        current_app.extensions['neo4j_storage'] = _FakeStorage()
+        with pytest.raises(PermissionError):
+            graph_access.require_graph_account_access("g1")

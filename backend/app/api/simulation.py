@@ -19,7 +19,7 @@ from ..utils.validation import validate_simulation_id, safe_join
 from ..models.project import ProjectManager
 from ..auth.ownership import current_user_id
 from ..auth.accounts import current_account_id, is_superadmin, require_account_access
-from ..auth.graph_access import require_graph_owner_or_admin
+from ..auth.graph_access import require_graph_account_access
 
 
 def _resolve_simulation_dir(simulation_id: str) -> str:
@@ -78,7 +78,7 @@ def get_graph_entities(graph_id: str):
         logger.info(f"Get knowledge graph entities: graph_id={graph_id}, entity_types={entity_types}, enrich={enrich}")
 
         try:
-            require_graph_owner_or_admin(graph_id)
+            require_graph_account_access(graph_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
 
@@ -111,7 +111,7 @@ def get_entity_detail(graph_id: str, entity_uuid: str):
     """Get detailed information of a single entity"""
     try:
         try:
-            require_graph_owner_or_admin(graph_id)
+            require_graph_account_access(graph_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.entityNotFound', id=entity_uuid)}), 404
 
@@ -148,7 +148,7 @@ def get_entities_by_type(graph_id: str, entity_type: str):
         enrich = request.args.get('enrich', 'true').lower() == 'true'
 
         try:
-            require_graph_owner_or_admin(graph_id)
+            require_graph_account_access(graph_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
 
@@ -1568,7 +1568,7 @@ def generate_profiles():
             }), 400
 
         try:
-            require_graph_owner_or_admin(graph_id)
+            require_graph_account_access(graph_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
 

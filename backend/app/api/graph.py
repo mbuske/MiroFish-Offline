@@ -20,7 +20,7 @@ from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
 from ..auth.ownership import current_user_id, is_admin, require_owner_or_admin
 from ..auth.accounts import current_account_id, is_superadmin, require_account_access
-from ..auth.graph_access import require_graph_owner_or_admin
+from ..auth.graph_access import require_graph_account_access
 
 # Get logger
 logger = get_logger('mirofish.api')
@@ -412,8 +412,9 @@ def build_graph():
         # Get storage in request context (background thread cannot access current_app)
         storage = _get_storage()
 
-        # Capture user id in request context to propagate into the background thread
+        # Capture user id and account id in request context to propagate into the background thread
         owner_id = current_user_id()
+        account_id = current_account_id()
 
         # Capture locale in request context to propagate into the background thread
         locale = get_locale()
@@ -462,7 +463,7 @@ def build_graph():
                     message=t('progress.creatingZepGraph'),
                     progress=10
                 )
-                graph_id = builder.create_graph(name=graph_name, owner_id=owner_id)
+                graph_id = builder.create_graph(name=graph_name, owner_id=owner_id, account_id=account_id)
 
                 # Update project graph_id
                 project.graph_id = graph_id
@@ -617,7 +618,7 @@ def get_graph_data(graph_id: str):
     """
     try:
         try:
-            require_graph_owner_or_admin(graph_id)
+            require_graph_account_access(graph_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
 
@@ -645,7 +646,7 @@ def delete_graph(graph_id: str):
     """
     try:
         try:
-            require_graph_owner_or_admin(graph_id)
+            require_graph_account_access(graph_id)
         except PermissionError:
             return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
 

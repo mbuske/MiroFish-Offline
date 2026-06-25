@@ -165,12 +165,13 @@ class GraphBuilderService:
             error_msg = f"{str(e)}\n{traceback.format_exc()}"
             self.task_manager.fail_task(task_id, error_msg)
 
-    def create_graph(self, name: str, owner_id: str = None) -> str:
+    def create_graph(self, name: str, owner_id: str = None, account_id: str = None) -> str:
         """Create graph"""
         return self.storage.create_graph(
             name=name,
             description="MiroFish Social Simulation Graph",
             owner_id=owner_id,
+            account_id=account_id,
         )
 
     def set_ontology(self, graph_id: str, ontology: Dict[str, Any]):
