@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime, timedelta
 from app.auth import db as authdb
 from app.auth import service
-from app.auth.models import User, UserSession, ROLE_ADMIN, ROLE_USER
+from app.auth.models import User, UserSession, ROLE_ADMIN, ROLE_ACCOUNT_ADMIN, ROLE_USER
 
 
 def test_init_db_creates_tables(tmp_path):
@@ -28,7 +28,7 @@ def test_user_and_session_persist(tmp_path):
                           expires_at=datetime.utcnow() + timedelta(days=7),
                           last_used_at=datetime.utcnow()))
     with authdb.session_scope() as s:
-        assert s.query(User).filter_by(email="a@b.de").one().role == "admin"
+        assert s.query(User).filter_by(email="a@b.de").one().role == ROLE_ACCOUNT_ADMIN
         assert s.query(UserSession).filter_by(user_id="u1").count() == 1
 
 
@@ -112,7 +112,7 @@ def test_set_role_and_reset_password(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
     uid = service.create_user("a@b.de", "pw")
     service.set_role(uid, ROLE_ADMIN)
-    assert service.get_user(uid).role == "admin"
+    assert service.get_user(uid).role == ROLE_ACCOUNT_ADMIN
     service.reset_password(uid, "newpw99")
     assert service.verify_password("newpw99", service.get_user(uid).password_hash)
     with pytest.raises(ValueError):
@@ -121,9 +121,9 @@ def test_set_role_and_reset_password(tmp_path):
 
 def test_count_admins_counts_active_admins_only(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
-    a1 = service.create_user("a1@x.de", "pw", role="admin")
+    a1 = service.create_user("a1@x.de", "pw", role=ROLE_ACCOUNT_ADMIN)
     service.create_user("u1@x.de", "pw", role="user")
-    a2 = service.create_user("a2@x.de", "pw", role="admin")
+    a2 = service.create_user("a2@x.de", "pw", role=ROLE_ACCOUNT_ADMIN)
     assert service.count_admins() == 2
     service.set_active(a2, False)            # deactivated admin must not count
     assert service.count_admins() == 1
@@ -140,6 +140,6 @@ def test_list_users_returns_all_ordered(tmp_path):
 def test_admin_ops_raise_for_missing_user(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
     with pytest.raises(ValueError):
-        service.set_role("nope", "admin")
+        service.set_role("nope", ROLE_ACCOUNT_ADMIN)
     with pytest.raises(ValueError):
         service.reset_password("nope", "newpw")

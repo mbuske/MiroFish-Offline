@@ -3,6 +3,7 @@ from flask import Flask
 from app.auth import db as authdb, service
 from app.auth.routes import auth_bp
 from app.auth.admin_routes import admin_bp
+from app.auth.models import ROLE_ACCOUNT_ADMIN
 from app.security import register_auth
 from app.config import Config
 
@@ -12,7 +13,7 @@ def admin_client(tmp_path, monkeypatch):
     monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
     monkeypatch.setattr(Config, "API_TOKEN", "")
     authdb.init_db(Config.AUTH_DB_PATH)
-    service.create_user("admin@x.de", "adminpw", role="admin")
+    service.create_user("admin@x.de", "adminpw", role=ROLE_ACCOUNT_ADMIN)
     app = Flask(__name__); app.config.from_object(Config)
     app.register_blueprint(auth_bp); app.register_blueprint(admin_bp)
     register_auth(app)

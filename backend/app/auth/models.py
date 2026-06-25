@@ -3,8 +3,20 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
 from .db import Base
 
 
-ROLE_ADMIN = "admin"
+ROLE_SUPERADMIN = "superadmin"
+ROLE_ACCOUNT_ADMIN = "account_admin"
 ROLE_USER = "user"
+# Backward-compat alias — removed in a later task.
+ROLE_ADMIN = ROLE_ACCOUNT_ADMIN
+
+
+class Account(Base):
+    __tablename__ = "accounts"
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False)
+    created_by = Column(String, nullable=True)
 
 
 class User(Base):
@@ -18,6 +30,7 @@ class User(Base):
     created_at = Column(DateTime, nullable=False)
     updated_at = Column(DateTime, nullable=False)
     created_by = Column(String, nullable=True)
+    account_id = Column(String, ForeignKey("accounts.id"), nullable=True, index=True)
 
 
 class UserSession(Base):
