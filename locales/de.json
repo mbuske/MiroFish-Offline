@@ -901,5 +901,25 @@
     "step2Short": "Schritt2",
     "step4Short": "Schritt4",
     "fileTypeDefault": "DATEI"
+  },
+  "auth": {
+    "loginTitle": "Anmelden",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "invalidCredentials": "Ungültige E-Mail oder Passwort.",
+    "admin": {
+      "usersTitle": "Benutzerverwaltung",
+      "createUser": "Benutzer anlegen",
+      "email": "E-Mail",
+      "name": "Name",
+      "role": "Rolle",
+      "active": "Aktiv",
+      "actions": "Aktionen",
+      "password": "Passwort",
+      "resetPassword": "Passwort zurücksetzen",
+      "noUsers": "Noch keine Benutzer."
+    }
   }
 }

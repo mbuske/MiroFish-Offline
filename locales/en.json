@@ -901,5 +901,25 @@
     "step2Short": "Step2",
     "step4Short": "Step4",
     "fileTypeDefault": "FILE"
+  },
+  "auth": {
+    "loginTitle": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "login": "Sign in",
+    "logout": "Sign out",
+    "invalidCredentials": "Invalid email or password.",
+    "admin": {
+      "usersTitle": "User management",
+      "createUser": "Create user",
+      "email": "Email",
+      "name": "Name",
+      "role": "Role",
+      "active": "Active",
+      "actions": "Actions",
+      "password": "Password",
+      "resetPassword": "Reset password",
+      "noUsers": "No users yet."
+    }
   }
 }
