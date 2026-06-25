@@ -6,8 +6,7 @@ const state = reactive({ logoUrl: null, primaryColor: null, accentColor: null })
 export function useBranding() {
   async function applyBranding() {
     try {
-      const res = await api.get('/api/branding/config')
-      const cfg = res.data
+      const cfg = await api.get('/api/branding/config')
       if (cfg.primary_color) {
         state.primaryColor = cfg.primary_color
         document.documentElement.style.setProperty('--brand-primary', cfg.primary_color)

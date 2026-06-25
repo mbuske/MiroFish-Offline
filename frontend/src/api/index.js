@@ -15,6 +15,9 @@ const service = axios.create({
 service.interceptors.request.use(
   config => {
     config.headers['Accept-Language'] = i18n.global.locale.value
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']        // let the browser set the multipart boundary
+    }
     return config
   },
   error => {

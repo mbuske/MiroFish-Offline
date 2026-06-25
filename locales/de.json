@@ -910,6 +910,10 @@
     "login": "Anmelden",
     "logout": "Abmelden",
     "invalidCredentials": "Ungültige E-Mail oder Passwort.",
+    "menu": {
+      "language": "Sprache",
+      "admin": "Administration"
+    },
     "admin": {
       "usersTitle": "Benutzerverwaltung",
       "createUser": "Benutzer anlegen",

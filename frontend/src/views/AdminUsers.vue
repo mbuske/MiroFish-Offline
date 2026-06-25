@@ -8,7 +8,6 @@
         </router-link>
       </div>
       <div class="header-right">
-        <LanguageSwitcher />
         <UserMenu />
       </div>
     </header>
@@ -72,7 +71,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '@/api'
-import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import { useBranding } from '@/stores/branding'
 

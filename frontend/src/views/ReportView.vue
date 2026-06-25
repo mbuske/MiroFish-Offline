@@ -22,7 +22,6 @@
 
       <div class="header-right">
         <UserMenu />
-        <LanguageSwitcher />
         <div class="workflow-step">
           <span class="step-num">{{ $t('common.stepCounter', { step: 4 }) }}</span>
           <span class="step-name">{{ $tm('main.stepNames')[3] }}</span>
@@ -69,7 +68,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import GraphPanel from '../components/GraphPanel.vue'
 import Step4Report from '../components/Step4Report.vue'
-import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 import UserMenu from '../components/UserMenu.vue'
 import { getProject, getGraphData } from '../api/graph'
 import { getSimulation } from '../api/simulation'

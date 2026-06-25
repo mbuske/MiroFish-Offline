@@ -910,6 +910,10 @@
     "login": "Sign in",
     "logout": "Sign out",
     "invalidCredentials": "Invalid email or password.",
+    "menu": {
+      "language": "Language",
+      "admin": "Admin"
+    },
     "admin": {
       "usersTitle": "User management",
       "createUser": "Create user",

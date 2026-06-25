@@ -8,7 +8,6 @@
         </router-link>
       </div>
       <div class="header-right">
-        <LanguageSwitcher />
         <UserMenu />
       </div>
     </header>
@@ -73,7 +72,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import api from '@/api'
-import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import UserMenu from '@/components/UserMenu.vue'
 import { useBranding } from '@/stores/branding'
 
@@ -103,8 +101,7 @@ const faviconSuccess = ref(false)
 async function loadConfig() {
   loadError.value = ''
   try {
-    const res = await api.get('/api/branding/config')
-    const cfg = res.data
+    const cfg = await api.get('/api/branding/config')
     if (cfg.primary_color) primaryColor.value = cfg.primary_color
     if (cfg.accent_color) accentColor.value = cfg.accent_color
     if (cfg.logo_url) currentLogoUrl.value = cfg.logo_url

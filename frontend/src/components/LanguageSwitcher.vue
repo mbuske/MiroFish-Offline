@@ -117,7 +117,7 @@ onUnmounted(() => {
 }
 
 .switcher-option.active {
-  color: var(--orange, #FF4500);
+  color: var(--brand-primary, #FF4500);
 }
 
 
