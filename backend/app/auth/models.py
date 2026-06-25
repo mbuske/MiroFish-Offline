@@ -2,6 +2,7 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
 from .db import Base
 
+
 ROLE_ADMIN = "admin"
 ROLE_USER = "user"
 
@@ -29,3 +30,14 @@ class UserSession(Base):
     last_used_at = Column(DateTime, nullable=False)
     user_agent = Column(String, nullable=True)
     ip = Column(String, nullable=True)
+
+
+class Branding(Base):
+    __tablename__ = "branding"
+    id = Column(String, primary_key=True)          # constant "singleton"
+    primary_color = Column(String, nullable=True)
+    accent_color = Column(String, nullable=True)
+    logo_filename = Column(String, nullable=True)
+    favicon_filename = Column(String, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
+    updated_by = Column(String, nullable=True)

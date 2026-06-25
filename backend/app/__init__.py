@@ -50,9 +50,13 @@ def create_app(config_class=Config):
     from .auth.seed import seed_admin_from_env
     from .auth.routes import auth_bp
     from .auth.admin_routes import admin_bp
+    from .branding.routes import branding_bp
+    from .branding.admin_routes import branding_admin_bp
     init_db(Config.AUTH_DB_PATH)
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(branding_bp)
+    app.register_blueprint(branding_admin_bp)
     try:
         seed_admin_from_env()
     except Exception as e:

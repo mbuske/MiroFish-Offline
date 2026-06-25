@@ -15,7 +15,12 @@ from flask import request, jsonify
 
 # Routes that must never require auth (liveness probe + CORS preflight handled
 # separately by method).
-_AUTH_EXEMPT_PATHS = frozenset({"/health"})
+_AUTH_EXEMPT_PATHS = frozenset({
+    "/health",
+    "/api/branding/config",
+    "/api/branding/logo",
+    "/api/branding/favicon",
+})
 
 _DEFAULT_CORS_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000"
 
