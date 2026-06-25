@@ -19,6 +19,7 @@ from ..utils import t, get_locale, set_locale
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
 from ..auth.ownership import current_user_id, is_admin, require_owner_or_admin
+from ..auth.accounts import current_account_id, is_superadmin, require_account_access
 from ..auth.graph_access import require_graph_owner_or_admin
 
 # Get logger
@@ -57,7 +58,7 @@ def get_project(project_id: str):
         }), 404
 
     try:
-        require_owner_or_admin(project.owner_id)
+        require_account_access(project.account_id)
     except PermissionError:
         return jsonify({
             "success": False,
@@ -78,8 +79,8 @@ def list_projects():
     limit = request.args.get('limit', 50, type=int)
     projects = ProjectManager.list_projects(
         limit=limit,
-        owner_id=current_user_id(),
-        include_all=is_admin()
+        account_id=current_account_id(),
+        include_all=is_superadmin()
     )
 
     return jsonify({
@@ -103,7 +104,7 @@ def delete_project(project_id: str):
         }), 404
 
     try:
-        require_owner_or_admin(project.owner_id)
+        require_account_access(project.account_id)
     except PermissionError:
         return jsonify({
             "success": False,
@@ -138,7 +139,7 @@ def reset_project(project_id: str):
         }), 404
 
     try:
-        require_owner_or_admin(project.owner_id)
+        require_account_access(project.account_id)
     except PermissionError:
         return jsonify({
             "success": False,
@@ -219,7 +220,11 @@ def generate_ontology():
             }), 400
 
         # Create project
-        project = ProjectManager.create_project(name=project_name, owner_id=current_user_id())
+        project = ProjectManager.create_project(
+            name=project_name,
+            owner_id=current_user_id(),
+            account_id=current_account_id()
+        )
         project.simulation_requirement = simulation_requirement
         logger.info(f"Project created: {project.project_id}")
         
@@ -349,7 +354,7 @@ def build_graph():
             }), 404
 
         try:
-            require_owner_or_admin(project.owner_id)
+            require_account_access(project.account_id)
         except PermissionError:
             return jsonify({
                 "success": False,

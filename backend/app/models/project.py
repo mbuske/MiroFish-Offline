@@ -55,6 +55,9 @@ class Project:
     # Ownership
     owner_id: Optional[str] = None
 
+    # Account (tenant) scoping
+    account_id: Optional[str] = None
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
         return {
@@ -73,7 +76,8 @@ class Project:
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
             "error": self.error,
-            "owner_id": self.owner_id
+            "owner_id": self.owner_id,
+            "account_id": self.account_id
         }
     
     @classmethod
@@ -99,7 +103,8 @@ class Project:
             chunk_size=data.get('chunk_size', 500),
             chunk_overlap=data.get('chunk_overlap', 50),
             error=data.get('error'),
-            owner_id=data.get('owner_id')
+            owner_id=data.get('owner_id'),
+            account_id=data.get('account_id')
         )
 
 
@@ -135,13 +140,15 @@ class ProjectManager:
         return os.path.join(cls._get_project_dir(project_id), 'extracted_text.txt')
 
     @classmethod
-    def create_project(cls, name: str = "Unnamed Project", owner_id: str = None) -> Project:
+    def create_project(cls, name: str = "Unnamed Project", owner_id: str = None,
+                       account_id: str = None) -> Project:
         """
         Create new project
 
         Args:
             name: Project name
-            owner_id: ID of the user creating the project (for ownership)
+            owner_id: ID of the user creating the project (for audit/ownership)
+            account_id: ID of the account (tenant) that owns this project
 
         Returns:
             Newly created Project object
@@ -159,6 +166,7 @@ class ProjectManager:
             updated_at=now
         )
         project.owner_id = owner_id
+        project.account_id = account_id
 
         # Create project directory structure
         project_dir = cls._get_project_dir(project_id)
@@ -203,14 +211,16 @@ class ProjectManager:
 
     @classmethod
     def list_projects(cls, limit: int = 50, owner_id: str = None,
+                      account_id: str = None,
                       include_all: bool = False) -> List[Project]:
         """
         List projects
 
         Args:
             limit: Result count limit
-            owner_id: Filter to this owner's projects (ignored when include_all=True)
-            include_all: If True, return all projects regardless of owner (admin use)
+            owner_id: (legacy/audit) kept for backward compatibility — not used for filtering
+            account_id: Filter to this account's projects (ignored when include_all=True)
+            include_all: If True, return all projects regardless of account (superadmin use)
 
         Returns:
             Project list, sorted by creation time (descending)
@@ -223,9 +233,9 @@ class ProjectManager:
             if project:
                 projects.append(project)
 
-        # Apply owner filter unless include_all is set
-        if not include_all and owner_id is not None:
-            projects = [p for p in projects if p.owner_id == owner_id]
+        # Apply account filter unless include_all is set
+        if not include_all and account_id is not None:
+            projects = [p for p in projects if p.account_id == account_id]
 
         # Sort by creation time (descending)
         projects.sort(key=lambda p: p.created_at, reverse=True)
