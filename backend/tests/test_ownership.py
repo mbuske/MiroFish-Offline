@@ -63,3 +63,16 @@ def test_list_projects_filters_by_owner(tmp_path, monkeypatch):
     assert {p.project_id for p in mine} == {p1.project_id}
     everything = pj.ProjectManager.list_projects(include_all=True)
     assert {p.project_id for p in everything} >= {p1.project_id, p2.project_id}
+
+
+def test_list_simulations_filters_by_owner(tmp_path, monkeypatch):
+    from app.services.simulation_manager import SimulationManager
+    m = SimulationManager()
+    m.SIMULATION_DATA_DIR = str(tmp_path)
+    s1 = m.create_simulation(project_id="p1", graph_id="g1", owner_id="u1")
+    m.create_simulation(project_id="p2", graph_id="g2", owner_id="u2")
+    mine = m.list_simulations(owner_id="u1")
+    assert len(mine) == 1
+    assert all(s.owner_id == "u1" for s in mine)
+    everything = m.list_simulations(include_all=True)
+    assert len(everything) == 2
