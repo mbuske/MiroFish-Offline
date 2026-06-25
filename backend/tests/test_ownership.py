@@ -76,3 +76,31 @@ def test_list_simulations_filters_by_owner(tmp_path, monkeypatch):
     assert all(s.owner_id == "u1" for s in mine)
     everything = m.list_simulations(include_all=True)
     assert len(everything) == 2
+
+
+def test_list_reports_filters_by_owner(tmp_path, monkeypatch):
+    from app.services.report_agent import ReportManager, Report, ReportStatus
+    monkeypatch.setattr(ReportManager, "REPORTS_DIR", str(tmp_path), raising=False)
+    r1 = Report(
+        report_id="r1",
+        simulation_id="s1",
+        graph_id="g1",
+        simulation_requirement="req1",
+        status=ReportStatus.COMPLETED,
+    )
+    r1.owner_id = "u1"
+    r2 = Report(
+        report_id="r2",
+        simulation_id="s2",
+        graph_id="g2",
+        simulation_requirement="req2",
+        status=ReportStatus.COMPLETED,
+    )
+    r2.owner_id = "u2"
+    ReportManager.save_report(r1)
+    ReportManager.save_report(r2)
+    mine = ReportManager.list_reports(owner_id="u1")
+    assert len(mine) == 1
+    assert all(x.owner_id == "u1" for x in mine)
+    everything = ReportManager.list_reports(include_all=True)
+    assert len(everything) == 2
