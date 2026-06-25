@@ -4,6 +4,9 @@
     <router-link v-if="isAdmin" to="/admin/users" class="admin-link">
       {{ $t('auth.admin.usersTitle') }}
     </router-link>
+    <router-link v-if="isAdmin" to="/admin/branding" class="admin-link">
+      {{ $t('branding.menuTitle') }}
+    </router-link>
     <button class="logout-btn" @click="handleLogout">
       {{ $t('auth.logout') }}
     </button>

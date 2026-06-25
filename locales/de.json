@@ -24,7 +24,7 @@
     "rounds": "Runden",
     "items": "Einträge",
     "files": "Dateien",
-    "brand": "MiroFish Offline",
+    "brand": "PredictAnything",
     "stepCounter": "Schritt {step}/5"
   },
   "meta": {
@@ -40,7 +40,7 @@
     "heroTitle1": "Berichte hochladen,",
     "heroTitle2": "vorhersagen, was als Nächstes geschieht",
     "heroDesc": "Aus einem einzigen Dokument extrahiert {brand} Realitäts-Seeds und baut eine Parallelwelt aus {agentScale} — vollständig auf Ihrem Rechner. Schleusen Sie Variablen ein, beobachten Sie emergentes Verhalten und finden Sie das {optimalSolution} in komplexen sozialen Dynamiken.",
-    "heroDescBrand": "MiroFish Offline",
+    "heroDescBrand": "PredictAnything",
     "heroDescAgentScale": "autonomen KI-Agenten",
     "heroDescOptimalSolution": "\"lokale Optimum\"",
     "slogan": "Lassen Sie Agenten die Zukunft proben, lassen Sie Entscheidungen sich bewähren",
@@ -875,7 +875,7 @@
     "processing": "Wird verarbeitet"
   },
   "homex": {
-    "logoAlt": "MiroFish Logo"
+    "logoAlt": "PredictAnything Logo"
   },
   "graphx": {
     "name": "Name",
@@ -920,7 +920,19 @@
       "actions": "Aktionen",
       "password": "Passwort",
       "resetPassword": "Passwort zurücksetzen",
-      "noUsers": "Noch keine Benutzer."
+      "noUsers": "Noch keine Benutzer.",
+      "back": "Zurück zur App"
     }
+  },
+  "branding": {
+    "menuTitle": "Darstellung",
+    "title": "Darstellungseinstellungen",
+    "primaryColor": "Primärfarbe",
+    "accentColor": "Akzentfarbe",
+    "logo": "Logo",
+    "favicon": "Favicon",
+    "upload": "Hochladen",
+    "save": "Speichern",
+    "currentLogo": "Aktuelles Logo"
   }
 }

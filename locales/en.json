@@ -24,7 +24,7 @@
     "rounds": "rounds",
     "items": "items",
     "files": "files",
-    "brand": "MiroFish Offline",
+    "brand": "PredictAnything",
     "stepCounter": "Step {step}/5"
   },
   "meta": {
@@ -40,7 +40,7 @@
     "heroTitle1": "Upload Reports,",
     "heroTitle2": "Predict What Happens Next",
     "heroDesc": "From a single document, {brand} extracts reality seeds and builds a parallel world of {agentScale} — running entirely on your machine. Inject variables, observe emergent behavior, and find {optimalSolution} in complex social dynamics.",
-    "heroDescBrand": "MiroFish Offline",
+    "heroDescBrand": "PredictAnything",
     "heroDescAgentScale": "autonomous AI agents",
     "heroDescOptimalSolution": "\"local optima\"",
     "slogan": "Let Agents rehearse the future, let decisions prevail",
@@ -875,7 +875,7 @@
     "processing": "Processing"
   },
   "homex": {
-    "logoAlt": "MiroFish Logo"
+    "logoAlt": "PredictAnything Logo"
   },
   "graphx": {
     "name": "Name",
@@ -920,7 +920,19 @@
       "actions": "Actions",
       "password": "Password",
       "resetPassword": "Reset password",
-      "noUsers": "No users yet."
+      "noUsers": "No users yet.",
+      "back": "Back to app"
     }
+  },
+  "branding": {
+    "menuTitle": "Appearance",
+    "title": "Appearance settings",
+    "primaryColor": "Primary color",
+    "accentColor": "Accent color",
+    "logo": "Logo",
+    "favicon": "Favicon",
+    "upload": "Upload",
+    "save": "Save",
+    "currentLogo": "Current logo"
   }
 }

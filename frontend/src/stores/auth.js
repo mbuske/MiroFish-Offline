@@ -11,15 +11,17 @@ export function useAuth() {
     isAdmin: computed(() => state.user?.role === 'admin'),
     async fetchMe() {
       try {
-        const { data } = await api.get('/api/auth/me')
-        state.user = data.user
+        // The axios response interceptor already unwraps to response.data,
+        // so api.* resolves to the payload object ({success, user}) directly.
+        const res = await api.get('/api/auth/me')
+        state.user = res.user
       } catch { state.user = null }
       finally { state.ready = true }
     },
     async login(email, password) {
-      const { data } = await api.post('/api/auth/login', { email, password })
-      state.user = data.user
-      return data.user
+      const res = await api.post('/api/auth/login', { email, password })
+      state.user = res.user
+      return res.user
     },
     async logout() {
       try { await api.post('/api/auth/logout') } finally { state.user = null }
