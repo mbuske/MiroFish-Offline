@@ -285,6 +285,62 @@ class TestPublicRoutes:
 
 
 # ---------------------------------------------------------------------------
+# Public route: ?account=<slug> (Task 5)
+# ---------------------------------------------------------------------------
+
+def test_public_config_by_slug_no_auth(tmp_path, monkeypatch):
+    from flask import Flask
+    from app.auth import db as authdb
+    from app.accounts import service as acct
+    from app.branding import service as br
+    from app.branding.routes import branding_bp
+    from app.security import register_auth
+    from app.config import Config
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(Config, "API_TOKEN", "")
+    monkeypatch.setattr(br, "BRANDING_DIR", str(tmp_path / "branding"))
+    authdb.init_db(Config.AUTH_DB_PATH)
+    aid = acct.create_account("Acme", "su")
+    slug = acct.get_account(aid).slug
+    br.update_colors(None, "#111111", "#222222", "su")
+    br.update_colors(aid, "#ff0000", None, "admin")
+    app = Flask(__name__)
+    app.config.from_object(Config)
+    app.register_blueprint(branding_bp)
+    register_auth(app)
+    c = app.test_client()
+    r = c.get(f"/api/branding/config?account={slug}")     # no login
+    assert r.status_code == 200
+    d = r.get_json()["data"]
+    assert d["primary_color"] == "#ff0000" and d["accent_color"] == "#222222"
+    assert c.get("/api/branding/config").get_json()["data"]["primary_color"] == "#111111"
+
+
+def test_public_config_unknown_slug_falls_back_to_default(tmp_path, monkeypatch):
+    from flask import Flask
+    from app.auth import db as authdb
+    from app.branding import service as br
+    from app.branding.routes import branding_bp
+    from app.security import register_auth
+    from app.config import Config
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(Config, "API_TOKEN", "")
+    monkeypatch.setattr(br, "BRANDING_DIR", str(tmp_path / "branding"))
+    authdb.init_db(Config.AUTH_DB_PATH)
+    br.update_colors(None, "#aaaaaa", "#bbbbbb", "su")
+    app = Flask(__name__)
+    app.config.from_object(Config)
+    app.register_blueprint(branding_bp)
+    register_auth(app)
+    c = app.test_client()
+    r = c.get("/api/branding/config?account=unknown-slug")
+    assert r.status_code == 200
+    d = r.get_json()["data"]
+    assert d["primary_color"] == "#aaaaaa"
+    assert d["accent_color"] == "#bbbbbb"
+
+
+# ---------------------------------------------------------------------------
 # Admin write route tests
 # ---------------------------------------------------------------------------
 
