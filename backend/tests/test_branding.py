@@ -1,12 +1,13 @@
 """Tests for the branding/appearance settings store."""
 import io
 import pytest
+from datetime import datetime
 from flask import Flask
 
 from app.auth import db as authdb, service as auth_service
 from app.auth.routes import auth_bp
 from app.auth.admin_routes import admin_bp
-from app.auth.models import ROLE_SUPERADMIN
+from app.auth.models import ROLE_SUPERADMIN, Branding
 from app.security import register_auth
 from app.config import Config
 import app.branding.service as branding_service
@@ -85,6 +86,21 @@ def anon_client(auth_db):
     app.register_blueprint(branding_admin_bp)
     register_auth(app)
     return app.test_client()
+
+
+# ---------------------------------------------------------------------------
+# Model unit tests
+# ---------------------------------------------------------------------------
+
+def test_branding_rows_keyed_by_account(tmp_path):
+    """Test that Branding rows can be keyed by account_id (NULL = global default)."""
+    authdb.init_db(str(tmp_path / "auth.db"))
+    with authdb.session_scope() as s:
+        s.add(Branding(id="b-default", account_id=None, primary_color="#000000", updated_at=datetime.utcnow()))
+        s.add(Branding(id="b-acc", account_id="accA", primary_color="#ff0000", updated_at=datetime.utcnow()))
+    with authdb.session_scope() as s:
+        assert s.query(Branding).filter_by(account_id=None).one().primary_color == "#000000"
+        assert s.query(Branding).filter_by(account_id="accA").one().primary_color == "#ff0000"
 
 
 # ---------------------------------------------------------------------------

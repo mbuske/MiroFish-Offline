@@ -46,7 +46,8 @@ class UserSession(Base):
 
 class Branding(Base):
     __tablename__ = "branding"
-    id = Column(String, primary_key=True)          # constant "singleton"
+    id = Column(String, primary_key=True)          # UUID per row
+    account_id = Column(String, ForeignKey("accounts.id"), nullable=True, unique=True, index=True)
     primary_color = Column(String, nullable=True)
     accent_color = Column(String, nullable=True)
     logo_filename = Column(String, nullable=True)
