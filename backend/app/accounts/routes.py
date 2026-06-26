@@ -96,7 +96,8 @@ def update_account_branding(account_id):
 @superadmin_bp.route("/accounts/<account_id>/branding/logo", methods=["POST"])
 @superadmin_required
 def upload_account_logo(account_id):
-    if not acct_service.get_account(account_id):
+    acct = acct_service.get_account(account_id)
+    if not acct:
         return jsonify({"success": False, "error": "account not found"}), 404
     f = request.files.get("file")
     if f is None:
@@ -105,13 +106,14 @@ def upload_account_logo(account_id):
         branding_service.save_asset(account_id, "logo", f, updated_by=g.current_user.id)
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
-    return jsonify({"success": True, "logo_url": f"/api/branding/logo?account={account_id}"})
+    return jsonify({"success": True, "logo_url": f"/api/branding/logo?account={acct.slug}"})
 
 
 @superadmin_bp.route("/accounts/<account_id>/branding/favicon", methods=["POST"])
 @superadmin_required
 def upload_account_favicon(account_id):
-    if not acct_service.get_account(account_id):
+    acct = acct_service.get_account(account_id)
+    if not acct:
         return jsonify({"success": False, "error": "account not found"}), 404
     f = request.files.get("file")
     if f is None:
@@ -120,4 +122,4 @@ def upload_account_favicon(account_id):
         branding_service.save_asset(account_id, "favicon", f, updated_by=g.current_user.id)
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
-    return jsonify({"success": True, "favicon_url": f"/api/branding/favicon?account={account_id}"})
+    return jsonify({"success": True, "favicon_url": f"/api/branding/favicon?account={acct.slug}"})
