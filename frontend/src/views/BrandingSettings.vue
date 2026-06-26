@@ -74,9 +74,15 @@ import { ref, onMounted } from 'vue'
 import api from '@/api'
 import UserMenu from '@/components/UserMenu.vue'
 import { useBranding } from '@/stores/branding'
+import { useAuth } from '@/stores/auth'
 
 const branding = useBranding()
 const { logoUrl } = branding
+const auth = useAuth()
+
+// Determine scope once: superadmin → default/global scope; else → account scope
+const isAdminScope = auth.isSuperadmin.value
+const base = isAdminScope ? '/api/admin/branding' : '/api/account/branding'
 
 const primaryColor = ref('#000000')
 const accentColor = ref('#FF4500')
@@ -101,7 +107,10 @@ const faviconSuccess = ref(false)
 async function loadConfig() {
   loadError.value = ''
   try {
-    const cfg = await api.get('/api/branding/config')
+    const url = isAdminScope
+      ? '/api/branding/config'
+      : `/api/branding/config?account=${encodeURIComponent(auth.accountSlug.value)}`
+    const cfg = await api.get(url)
     if (cfg.primary_color) primaryColor.value = cfg.primary_color
     if (cfg.accent_color) accentColor.value = cfg.accent_color
     if (cfg.logo_url) currentLogoUrl.value = cfg.logo_url
@@ -115,12 +124,16 @@ async function saveColors() {
   saveSuccess.value = false
   saving.value = true
   try {
-    await api.post('/api/admin/branding', {
+    await api.post(base, {
       primary_color: primaryColor.value,
       accent_color: accentColor.value
     })
     saveSuccess.value = true
-    await branding.applyBranding()
+    if (isAdminScope) {
+      await branding.applyBranding(null)
+    } else {
+      await branding.applyBranding(auth.accountSlug.value)
+    }
   } catch (e) {
     saveError.value = e.message || 'Failed to save colors'
   } finally {
@@ -140,11 +153,15 @@ async function uploadLogo() {
   try {
     const formData = new FormData()
     formData.append('file', logoFile.value)
-    await api.post('/api/admin/branding/logo', formData)
+    await api.post(base + '/logo', formData)
     logoSuccess.value = true
     logoFile.value = null
     if (logoInput.value) logoInput.value.value = ''
-    await branding.applyBranding()
+    if (isAdminScope) {
+      await branding.applyBranding(null)
+    } else {
+      await branding.applyBranding(auth.accountSlug.value)
+    }
     await loadConfig()
   } catch (e) {
     logoError.value = e.message || 'Failed to upload logo'
@@ -165,11 +182,15 @@ async function uploadFavicon() {
   try {
     const formData = new FormData()
     formData.append('file', faviconFile.value)
-    await api.post('/api/admin/branding/favicon', formData)
+    await api.post(base + '/favicon', formData)
     faviconSuccess.value = true
     faviconFile.value = null
     if (faviconInput.value) faviconInput.value.value = ''
-    await branding.applyBranding()
+    if (isAdminScope) {
+      await branding.applyBranding(null)
+    } else {
+      await branding.applyBranding(auth.accountSlug.value)
+    }
   } catch (e) {
     faviconError.value = e.message || 'Failed to upload favicon'
   } finally {

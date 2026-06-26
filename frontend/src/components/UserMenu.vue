@@ -48,6 +48,9 @@
         <router-link class="menu-item" to="/admin/users" @click="open = false">
           {{ $t('auth.admin.usersTitle') }}
         </router-link>
+        <router-link class="menu-item" to="/admin/branding" @click="open = false">
+          {{ $t('branding.menuTitle') }}
+        </router-link>
         <div class="menu-divider"></div>
       </template>
 
