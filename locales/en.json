@@ -31,9 +31,6 @@
     "title": "PredictAnything - Predict Everything",
     "description": "PredictAnything - Multi-Agent Social Simulation Engine"
   },
-  "nav": {
-    "visitGithub": "Visit our Github page"
-  },
   "home": {
     "tagline": "Offline Multi-Agent Simulation Engine",
     "version": "/ v0.1-preview",

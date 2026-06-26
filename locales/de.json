@@ -31,9 +31,6 @@
     "title": "PredictAnything - Alles vorhersagen",
     "description": "PredictAnything - Multi-Agenten-Simulationsmaschine für soziale Medien"
   },
-  "nav": {
-    "visitGithub": "Besuchen Sie unsere GitHub-Seite"
-  },
   "home": {
     "tagline": "Offline-Multi-Agenten-Simulationsmaschine",
     "version": "/ v0.1-preview",
