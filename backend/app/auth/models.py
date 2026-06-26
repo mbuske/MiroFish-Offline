@@ -12,6 +12,7 @@ class Account(Base):
     __tablename__ = "accounts"
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
+    slug = Column(String, unique=True, nullable=False, index=True)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False)
     created_by = Column(String, nullable=True)

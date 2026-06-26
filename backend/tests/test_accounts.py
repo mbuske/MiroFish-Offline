@@ -14,7 +14,7 @@ from app.auth import service as user_service
 def test_account_and_user_account_id_persist(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
     with authdb.session_scope() as s:
-        s.add(Account(id="acc1", name="Acme", is_active=True, created_at=datetime.utcnow(), created_by="su1"))
+        s.add(Account(id="acc1", name="Acme", slug="acme", is_active=True, created_at=datetime.utcnow(), created_by="su1"))
         s.flush()
         s.add(User(id="u1", email="a@b.de", password_hash="x", role=ROLE_USER, is_active=True,
                    account_id="acc1", created_at=datetime.utcnow(), updated_at=datetime.utcnow()))
@@ -132,3 +132,15 @@ def test_superadmin_routes_forbidden_for_non_superadmin(tmp_path, monkeypatch):
     c = app.test_client()
     c.post("/api/auth/login", json={"email": "u@x.de", "password": "pw12345"})
     assert c.get("/api/superadmin/accounts").status_code == 403
+
+
+def test_account_gets_unique_slug(tmp_path):
+    authdb.init_db(str(tmp_path / "auth.db"))
+    a1 = acct_service.create_account("Acme Corp", created_by="su")
+    a2 = acct_service.create_account("Acme Corp", created_by="su")  # same name → unique slug
+    s1 = acct_service.get_account(a1).slug
+    s2 = acct_service.get_account(a2).slug
+    assert s1 == "acme-corp"
+    assert s2 != s1 and s2.startswith("acme-corp")
+    assert acct_service.get_account_by_slug("acme-corp").id == a1
+    assert acct_service.slugify("Ünîç &   Test!") == "unic-test"
