@@ -24,12 +24,12 @@
     "rounds": "Runden",
     "items": "Einträge",
     "files": "Dateien",
-    "brand": "MiroFish Offline",
+    "brand": "PredictAnything",
     "stepCounter": "Schritt {step}/5"
   },
   "meta": {
-    "title": "MiroFish Offline - Alles vorhersagen",
-    "description": "MiroFish Offline - Multi-Agenten-Simulationsmaschine für soziale Medien"
+    "title": "PredictAnything - Alles vorhersagen",
+    "description": "PredictAnything - Multi-Agenten-Simulationsmaschine für soziale Medien"
   },
   "nav": {
     "visitGithub": "Besuchen Sie unsere GitHub-Seite"
@@ -40,7 +40,7 @@
     "heroTitle1": "Berichte hochladen,",
     "heroTitle2": "vorhersagen, was als Nächstes geschieht",
     "heroDesc": "Aus einem einzigen Dokument extrahiert {brand} Realitäts-Seeds und baut eine Parallelwelt aus {agentScale} — vollständig auf Ihrem Rechner. Schleusen Sie Variablen ein, beobachten Sie emergentes Verhalten und finden Sie das {optimalSolution} in komplexen sozialen Dynamiken.",
-    "heroDescBrand": "MiroFish Offline",
+    "heroDescBrand": "PredictAnything",
     "heroDescAgentScale": "autonomen KI-Agenten",
     "heroDescOptimalSolution": "\"lokale Optimum\"",
     "slogan": "Lassen Sie Agenten die Zukunft proben, lassen Sie Entscheidungen sich bewähren",
@@ -346,6 +346,7 @@
     "buildFailed": "Aufbau fehlgeschlagen: {error}",
     "taskNotFound": "Aufgabe nicht gefunden: {id}",
     "graphDeleted": "Graph gelöscht: {id}",
+    "graphNotFound": "Graph nicht gefunden: {id}",
     "entityNotFound": "Entität nicht gefunden: {id}",
     "graphNotBuilt": "Graph noch nicht aufgebaut. Bitte rufen Sie zuerst /api/graph/build auf.",
     "requireSimulationId": "Bitte geben Sie simulation_id an",
@@ -874,7 +875,7 @@
     "processing": "Wird verarbeitet"
   },
   "homex": {
-    "logoAlt": "MiroFish Logo"
+    "logoAlt": "PredictAnything Logo"
   },
   "graphx": {
     "name": "Name",
@@ -901,5 +902,78 @@
     "step2Short": "Schritt2",
     "step4Short": "Schritt4",
     "fileTypeDefault": "DATEI"
+  },
+  "auth": {
+    "loginTitle": "Anmelden",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "invalidCredentials": "Ungültige E-Mail oder Passwort.",
+    "menu": {
+      "language": "Sprache",
+      "admin": "Administration"
+    },
+    "admin": {
+      "usersTitle": "Benutzerverwaltung",
+      "createUser": "Benutzer anlegen",
+      "email": "E-Mail",
+      "name": "Name",
+      "role": "Rolle",
+      "active": "Aktiv",
+      "actions": "Aktionen",
+      "password": "Passwort",
+      "resetPassword": "Passwort zurücksetzen",
+      "noUsers": "Noch keine Benutzer.",
+      "back": "Zurück zur App"
+    }
+  },
+  "branding": {
+    "menuTitle": "Darstellung",
+    "title": "Darstellungseinstellungen",
+    "primaryColor": "Primärfarbe",
+    "accentColor": "Akzentfarbe",
+    "logo": "Logo",
+    "favicon": "Favicon",
+    "upload": "Hochladen",
+    "save": "Speichern",
+    "currentLogo": "Aktuelles Logo"
+  },
+  "accounts": {
+    "menuTitle": "Accounts",
+    "title": "Account-Verwaltung",
+    "name": "Account-Name",
+    "createAccount": "Account anlegen",
+    "active": "Aktiv",
+    "actions": "Aktionen",
+    "userCount": "Benutzer",
+    "createAdmin": "Admin anlegen",
+    "adminEmail": "Admin-E-Mail",
+    "adminName": "Admin-Name",
+    "adminPassword": "Admin-Passwort",
+    "cancel": "Abbrechen",
+    "noAccounts": "Noch keine Accounts.",
+    "accountName": "Account",
+    "slug": "Slug",
+    "rename": "Umbenennen",
+    "save": "Speichern",
+    "slugError": "Slug konnte nicht umbenannt werden",
+    "users": "Benutzer",
+    "usersOf": "Benutzer von {name}",
+    "noUsers": "Keine Benutzer in diesem Account.",
+    "usersLoadError": "Benutzer konnten nicht geladen werden",
+    "editBranding": "Darstellung bearbeiten",
+    "brandingOf": "Darstellung: {name}",
+    "brandingSaved": "Farben gespeichert.",
+    "brandingError": "Darstellung konnte nicht gespeichert werden",
+    "logoUploaded": "Logo hochgeladen.",
+    "logoError": "Logo konnte nicht hochgeladen werden",
+    "faviconUploaded": "Favicon hochgeladen.",
+    "faviconError": "Favicon konnte nicht hochgeladen werden",
+    "brandingLoadError": "Darstellung konnte nicht geladen werden",
+    "loadError": "Accounts konnten nicht geladen werden",
+    "createAccountError": "Account konnte nicht angelegt werden",
+    "toggleActiveError": "Status konnte nicht aktualisiert werden",
+    "createAdminError": "Admin konnte nicht angelegt werden"
   }
 }

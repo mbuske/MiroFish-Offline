@@ -144,6 +144,35 @@ deployment should put it behind a real auth proxy.
 
 ---
 
+## 6 — Multi-tenant access control & per-account branding
+
+Beyond the CVE fixes, the `feat/account-management` branch added the
+authentication, RBAC, and tenant-isolation model that now governs the API.
+Security-relevant properties:
+
+- **Deny-by-default API** — `/api/*` is rejected without a valid server-side
+  session unless the path is on the public allowlist (login + the public
+  branding reads). Sessions are revocable (logout, password reset, account
+  suspension).
+- **Tenant isolation** — resources carry an `account_id`; access requires
+  `superadmin OR resource.account_id == current_user.account_id`, and a mismatch
+  returns **404** (existence is hidden). List endpoints filter to the caller's
+  account.
+- **Account suspension** revokes the account's sessions and blocks login +
+  session-resolution for its users.
+- **Branding write isolation** — account admins write only their own account's
+  branding (routes use the session's account id, never client input); superadmin
+  routes are `@superadmin_required`; a plain user cannot write branding.
+- **Public branding reads** (`/api/branding/config|logo|favicon?account=<slug>`)
+  are intentionally public (pre-login branding) and expose only branding fields;
+  asset paths are keyed by the resolved account id and filenames are normalized
+  server-side (`<kind>.<ext>`, extension allowlisted) — no path traversal via
+  slug or uploaded filename.
+
+Full model and endpoint list: [`accounts-and-branding.md`](accounts-and-branding.md).
+
+---
+
 ## Configuration reference (new security settings)
 
 All in `.env` (see [`.env.example`](../.env.example)):

@@ -66,13 +66,12 @@ class TestApiAuth:
         resp = client.open("/api/t/ping", method="OPTIONS")
         assert resp.status_code != 401
 
-    def test_no_token_configured_allows_request_but_open(self):
-        # When no token is set the app stays open (local single-user default);
-        # this preserves localhost UX. Hardening is opt-in via API_TOKEN.
+    def test_no_token_configured_now_requires_login(self):
+        # After account-management, deny-by-default applies even without API_TOKEN.
         app = _make_app("")
-        client = app.test_client()
-        resp = client.get("/api/t/ping")
-        assert resp.status_code == 200
+        register_auth(app)
+        resp = app.test_client().get("/api/t/ping")
+        assert resp.status_code == 401
 
 
 class TestCorsOrigins:
@@ -85,3 +84,10 @@ class TestCorsOrigins:
         origins = get_cors_origins("http://localhost:3000, https://app.example.com")
         assert "http://localhost:3000" in origins
         assert "https://app.example.com" in origins
+
+
+def test_auth_config_defaults():
+    from app.config import Config
+    assert Config.SESSION_COOKIE_NAME == "mf_session"
+    assert isinstance(Config.SESSION_TTL_DAYS, int)
+    assert isinstance(Config.BCRYPT_COST, int)

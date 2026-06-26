@@ -11,6 +11,7 @@ This `docs/` directory holds the engineering documentation for the offline fork.
 | [`i18n.md`](i18n.md) | The **bilingual German/English internationalization system** — shared `locales/`, vue-i18n frontend, custom backend resolver, the background-thread locale pattern, and LLM language steering. |
 | [`security.md`](security.md) | **Disclosed MiroFish CVEs & hardening** — verification + fixes for the Werkzeug debugger RCE, CVE-2026-7041 (PIN info-disclosure), CVE-2026-7059 (path traversal), IPC command injection, and CVE-2026-7042 (missing API auth); new `API_TOKEN`/`CORS_ORIGINS`/`FLASK_DEBUG`/`FLASK_HOST` settings. |
 | [`llm-configuration.md`](llm-configuration.md) | **LLM & embedding configuration** — local / remote / hybrid deployment modes, the three model-config consumers, the embedding-service caveat, and the ontology-generation **500-error troubleshooting** guide. |
+| [`accounts-and-branding.md`](accounts-and-branding.md) | **Accounts, roles & per-account branding** — the multi-tenant account model (superadmin / account_admin / user), revocable sessions + RBAC, account-scoped resource isolation, superadmin oversight, URL-safe account slugs, and the per-account branding system with `?account=<slug>` pre-login branding and a global-default fallback. |
 
 ## Change log of recent fork work
 
@@ -28,6 +29,16 @@ LLM-generated content. See [`i18n.md`](i18n.md).
 ### Zep → Neo4j refactor
 Replaced the Zep Cloud knowledge-graph backend with local Neo4j CE + Ollama
 behind a `GraphStorage` abstraction. See [`progress.md`](progress.md).
+
+### Accounts, RBAC & per-account branding (`feat/account-management`)
+Added multi-user authentication with revocable server-side sessions, a
+three-tier role model (superadmin / account_admin / user), account-level
+multi-tenancy with per-account resource isolation, superadmin oversight
+(read-only user drill-down + account suspend/reactivate), URL-safe account
+slugs, and per-account branding (colors/logo/favicon) with `?account=<slug>`
+pre-login branding over a global default. See
+[`accounts-and-branding.md`](accounts-and-branding.md). Requires a one-time
+`backend/uploads/auth.db` wipe (fresh-start schema; no data migration).
 
 ### Security & dependency maintenance (upstream ports)
 - **`afc0075`** `fix(security)` — raised the axios floor to `^1.14.0` and ran a

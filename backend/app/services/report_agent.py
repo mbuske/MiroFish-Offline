@@ -451,7 +451,9 @@ class Report:
     created_at: str = ""
     completed_at: str = ""
     error: Optional[str] = None
-    
+    owner_id: Optional[str] = None
+    account_id: Optional[str] = None
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "report_id": self.report_id,
@@ -463,7 +465,9 @@ class Report:
             "markdown_content": self.markdown_content,
             "created_at": self.created_at,
             "completed_at": self.completed_at,
-            "error": self.error
+            "error": self.error,
+            "owner_id": self.owner_id,
+            "account_id": self.account_id
         }
 
 
@@ -2506,7 +2510,9 @@ class ReportManager:
             markdown_content=markdown_content,
             created_at=data.get('created_at', ''),
             completed_at=data.get('completed_at', ''),
-            error=data.get('error')
+            error=data.get('error'),
+            owner_id=data.get('owner_id'),
+            account_id=data.get('account_id')
         )
     
     @classmethod
@@ -2531,30 +2537,43 @@ class ReportManager:
         return None
     
     @classmethod
-    def list_reports(cls, simulation_id: Optional[str] = None, limit: int = 50) -> List[Report]:
-        """columnappearreport"""
+    def list_reports(
+        cls,
+        simulation_id: Optional[str] = None,
+        limit: int = 50,
+        account_id: Optional[str] = None,
+        include_all: bool = False,
+    ) -> List[Report]:
+        """List reports with optional account filtering."""
         cls._ensure_reports_dir()
-        
+
         reports = []
         for item in os.listdir(cls.REPORTS_DIR):
             item_path = os.path.join(cls.REPORTS_DIR, item)
-            # newformat：filefolder
+            # new format: folder
             if os.path.isdir(item_path):
                 report = cls.get_report(item)
                 if report:
                     if simulation_id is None or report.simulation_id == simulation_id:
                         reports.append(report)
-            # backward compatibleformat：JSONfile
+            # backward compatible format: JSON file
             elif item.endswith('.json'):
                 report_id = item[:-5]
                 report = cls.get_report(report_id)
                 if report:
                     if simulation_id is None or report.simulation_id == simulation_id:
                         reports.append(report)
-        
+
+        # Apply account filter unless include_all is True.
+        # Fail closed: a non-include_all caller with no account_id matches nothing.
+        if not include_all:
+            if account_id is None:
+                return []
+            reports = [r for r in reports if r.account_id == account_id]
+
         # sorted by creation time descending
         reports.sort(key=lambda r: r.created_at, reverse=True)
-        
+
         return reports[:limit]
     
     @classmethod

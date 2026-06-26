@@ -5,8 +5,15 @@ import SimulationView from '../views/SimulationView.vue'
 import SimulationRunView from '../views/SimulationRunView.vue'
 import ReportView from '../views/ReportView.vue'
 import InteractionView from '../views/InteractionView.vue'
+import { useAuth } from '@/stores/auth'
 
 const routes = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/Login.vue'),
+    meta: { public: true }
+  },
   {
     path: '/',
     name: 'Home',
@@ -41,12 +48,40 @@ const routes = [
     name: 'Interaction',
     component: InteractionView,
     props: true
+  },
+  {
+    path: '/admin/users',
+    name: 'AdminUsers',
+    component: () => import('@/views/AdminUsers.vue'),
+    meta: { admin: true }
+  },
+  {
+    path: '/admin/branding',
+    name: 'BrandingSettings',
+    component: () => import('@/views/BrandingSettings.vue'),
+    meta: { admin: true }
+  },
+  {
+    path: '/superadmin/accounts',
+    name: 'SuperadminAccounts',
+    component: () => import('@/views/SuperadminAccounts.vue'),
+    meta: { superadmin: true }
   }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+router.beforeEach(async (to) => {
+  const auth = useAuth()
+  if (!auth.ready.value) await auth.fetchMe()
+  if (to.meta.public) return true
+  if (!auth.isAuthenticated.value) return { path: '/login', query: { redirect: to.fullPath } }
+  if (to.meta.superadmin && !auth.isSuperadmin.value) return { path: '/' }
+  if (to.meta.admin && !(auth.isAccountAdmin.value || auth.isSuperadmin.value)) return { path: '/' }
+  return true
 })
 
 export default router

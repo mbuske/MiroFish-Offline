@@ -35,6 +35,16 @@ class Config:
     # SECURITY: allowed CORS origins (comma-separated). Replaces wildcard '*'.
     CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '')
 
+    # ===== Auth / account management =====
+    AUTH_DB_PATH = os.environ.get(
+        'AUTH_DB_PATH',
+        os.path.join(os.path.dirname(__file__), '../uploads/auth.db'))
+    SESSION_COOKIE_NAME = "mf_session"
+    SESSION_TTL_DAYS = int(os.environ.get('SESSION_TTL_DAYS', '7'))
+    BCRYPT_COST = int(os.environ.get('BCRYPT_COST', '12'))
+    ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', '')
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
+
     # JSON configuration - disable ASCII escaping to display Chinese directly (not as \uXXXX)
     JSON_AS_ASCII = False
 

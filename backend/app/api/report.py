@@ -17,6 +17,9 @@ from ..models.task import TaskManager, TaskStatus
 from ..services.graph_tools import GraphToolsService
 from ..utils.logger import get_logger
 from ..utils import t, get_locale, set_locale
+from ..auth.ownership import current_user_id
+from ..auth.accounts import current_account_id, is_superadmin, require_account_access, can_access_account
+from ..auth.graph_access import require_graph_account_access
 
 logger = get_logger('mirofish.api.report')
 
@@ -35,6 +38,11 @@ def generate_report():
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
         if not state:
+            return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
+
+        try:
+            require_account_access(getattr(state, 'account_id', None))
+        except PermissionError:
             return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
 
         if not force_regenerate:
@@ -62,6 +70,8 @@ def generate_report():
 
         import uuid
         report_id = f"report_{uuid.uuid4().hex[:12]}"
+        creator_id = current_user_id()
+        creator_account_id = current_account_id()
 
         task_manager = TaskManager()
         task_id = task_manager.create_task(
@@ -92,6 +102,8 @@ def generate_report():
                 def progress_callback(stage, progress, message):
                     task_manager.update_task(task_id, progress=progress, message=f"[{stage}] {message}")
                 report = agent.generate_report(progress_callback=progress_callback, report_id=report_id)
+                report.owner_id = creator_id
+                report.account_id = creator_account_id
                 ReportManager.save_report(report)
                 if report.status == ReportStatus.COMPLETED:
                     task_manager.complete_task(task_id, result={"report_id": report.report_id, "simulation_id": simulation_id, "status": "completed"})
@@ -127,7 +139,7 @@ def get_generate_status():
 
         if simulation_id:
             existing_report = ReportManager.get_report_by_simulation(simulation_id)
-            if existing_report and existing_report.status == ReportStatus.COMPLETED:
+            if existing_report and existing_report.status == ReportStatus.COMPLETED and can_access_account(getattr(existing_report, 'account_id', None)):
                 return jsonify({"success": True, "data": {
                     "simulation_id": simulation_id,
                     "report_id": existing_report.report_id,
@@ -160,6 +172,10 @@ def get_report(report_id: str):
         report = ReportManager.get_report(report_id)
         if not report:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
+        try:
+            require_account_access(report.account_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         return jsonify({"success": True, "data": report.to_dict()})
     except Exception as e:
         logger.error(f"Failed to get report: {str(e)}")
@@ -172,6 +188,10 @@ def get_report_by_simulation(simulation_id: str):
         report = ReportManager.get_report_by_simulation(simulation_id)
         if not report:
             return jsonify({"success": False, "error": t('api.noReportForSim', id=simulation_id), "has_report": False}), 404
+        try:
+            require_account_access(report.account_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.noReportForSim', id=simulation_id), "has_report": False}), 404
         return jsonify({"success": True, "data": report.to_dict()})
     except Exception as e:
         logger.error(f"Failed to get report: {str(e)}")
@@ -183,7 +203,12 @@ def list_reports():
     try:
         simulation_id = request.args.get('simulation_id')
         limit = request.args.get('limit', 50, type=int)
-        reports = ReportManager.list_reports(simulation_id=simulation_id, limit=limit)
+        reports = ReportManager.list_reports(
+            simulation_id=simulation_id,
+            limit=limit,
+            account_id=current_account_id(),
+            include_all=is_superadmin(),
+        )
         return jsonify({"success": True, "data": [r.to_dict() for r in reports], "count": len(reports)})
     except Exception as e:
         logger.error(f"Failed to list reports: {str(e)}")
@@ -195,6 +220,10 @@ def download_report(report_id: str):
     try:
         report = ReportManager.get_report(report_id)
         if not report:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
+        try:
+            require_account_access(report.account_id)
+        except PermissionError:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
 
         md_path = ReportManager._get_report_markdown_path(report_id)
@@ -215,6 +244,13 @@ def download_report(report_id: str):
 @report_bp.route('/<report_id>', methods=['DELETE'])
 def delete_report(report_id: str):
     try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
+        try:
+            require_account_access(report.account_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         success = ReportManager.delete_report(report_id)
         if not success:
             return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
@@ -242,6 +278,11 @@ def chat_with_report_agent():
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
         if not state:
+            return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
+
+        try:
+            require_account_access(getattr(state, 'account_id', None))
+        except PermissionError:
             return jsonify({"success": False, "error": t('api.simulationNotFound', id=simulation_id)}), 404
 
         project = ProjectManager.get_project(state.project_id)
@@ -279,6 +320,13 @@ def chat_with_report_agent():
 @report_bp.route('/<report_id>/progress', methods=['GET'])
 def get_report_progress(report_id: str):
     try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({"success": False, "error": t('api.reportProgressNotAvail', id=report_id)}), 404
+        try:
+            require_account_access(report.account_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.reportProgressNotAvail', id=report_id)}), 404
         progress = ReportManager.get_progress(report_id)
         if not progress:
             return jsonify({"success": False, "error": t('api.reportProgressNotAvail', id=report_id)}), 404
@@ -291,9 +339,15 @@ def get_report_progress(report_id: str):
 @report_bp.route('/<report_id>/sections', methods=['GET'])
 def get_report_sections(report_id: str):
     try:
-        sections = ReportManager.get_generated_sections(report_id)
         report = ReportManager.get_report(report_id)
-        is_complete = report is not None and report.status == ReportStatus.COMPLETED
+        if not report:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
+        try:
+            require_account_access(report.account_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
+        sections = ReportManager.get_generated_sections(report_id)
+        is_complete = report.status == ReportStatus.COMPLETED
         return jsonify({"success": True, "data": {
             "report_id": report_id,
             "sections": sections,
@@ -308,6 +362,13 @@ def get_report_sections(report_id: str):
 @report_bp.route('/<report_id>/section/<int:section_index>', methods=['GET'])
 def get_single_section(report_id: str, section_index: int):
     try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
+        try:
+            require_account_access(report.account_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         section_path = ReportManager._get_section_path(report_id, section_index)
         if not os.path.exists(section_path):
             return jsonify({"success": False, "error": t('api.sectionNotFound', index=f"{section_index:02d}")}), 404
@@ -325,6 +386,8 @@ def get_single_section(report_id: str, section_index: int):
 def check_report_status(simulation_id: str):
     try:
         report = ReportManager.get_report_by_simulation(simulation_id)
+        if report is not None and not can_access_account(getattr(report, 'account_id', None)):
+            report = None
         has_report = report is not None
         report_status = report.status.value if report and hasattr(report.status, 'value') else (report.status if report else None)
         report_id = report.report_id if report else None
@@ -346,6 +409,13 @@ def check_report_status(simulation_id: str):
 @report_bp.route('/<report_id>/agent-log', methods=['GET'])
 def get_agent_log(report_id: str):
     try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
+        try:
+            require_account_access(report.account_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         from_line = request.args.get('from_line', 0, type=int)
         log_data = ReportManager.get_agent_log(report_id, from_line=from_line)
         return jsonify({"success": True, "data": log_data})
@@ -357,6 +427,13 @@ def get_agent_log(report_id: str):
 @report_bp.route('/<report_id>/agent-log/stream', methods=['GET'])
 def stream_agent_log(report_id: str):
     try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
+        try:
+            require_account_access(report.account_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         logs = ReportManager.get_agent_log_stream(report_id)
         return jsonify({"success": True, "data": {"logs": logs, "count": len(logs)}})
     except Exception as e:
@@ -369,6 +446,13 @@ def stream_agent_log(report_id: str):
 @report_bp.route('/<report_id>/console-log', methods=['GET'])
 def get_console_log(report_id: str):
     try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
+        try:
+            require_account_access(report.account_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         from_line = request.args.get('from_line', 0, type=int)
         log_data = ReportManager.get_console_log(report_id, from_line=from_line)
         return jsonify({"success": True, "data": log_data})
@@ -380,6 +464,13 @@ def get_console_log(report_id: str):
 @report_bp.route('/<report_id>/console-log/stream', methods=['GET'])
 def stream_console_log(report_id: str):
     try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
+        try:
+            require_account_access(report.account_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.reportNotFound', id=report_id)}), 404
         logs = ReportManager.get_console_log_stream(report_id)
         return jsonify({"success": True, "data": {"logs": logs, "count": len(logs)}})
     except Exception as e:
@@ -398,6 +489,10 @@ def search_graph_tool():
         limit = data.get('limit', 10)
         if not graph_id or not query:
             return jsonify({"success": False, "error": t('api.requireGraphIdAndQuery')}), 400
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
         storage = current_app.extensions.get('neo4j_storage')
         if not storage:
             raise ValueError("GraphStorage not initialized — check Neo4j connection")
@@ -416,6 +511,10 @@ def get_graph_statistics_tool():
         graph_id = data.get('graph_id')
         if not graph_id:
             return jsonify({"success": False, "error": t('api.requireGraphId')}), 400
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
         storage = current_app.extensions.get('neo4j_storage')
         if not storage:
             raise ValueError("GraphStorage not initialized — check Neo4j connection")

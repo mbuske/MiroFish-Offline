@@ -18,6 +18,10 @@ from ..utils.logger import get_logger
 from ..utils import t, get_locale, set_locale
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
+from ..auth.ownership import current_user_id
+from ..auth.accounts import current_account_id, is_superadmin, require_account_access
+from ..auth.graph_access import require_graph_account_access
+from ..auth.decorators import superadmin_required
 
 # Get logger
 logger = get_logger('mirofish.api')
@@ -47,8 +51,16 @@ def get_project(project_id: str):
     Get project details
     """
     project = ProjectManager.get_project(project_id)
-    
+
     if not project:
+        return jsonify({
+            "success": False,
+            "error": t('api.projectNotFound', id=project_id)
+        }), 404
+
+    try:
+        require_account_access(project.account_id)
+    except PermissionError:
         return jsonify({
             "success": False,
             "error": t('api.projectNotFound', id=project_id)
@@ -66,8 +78,12 @@ def list_projects():
     List all projects
     """
     limit = request.args.get('limit', 50, type=int)
-    projects = ProjectManager.list_projects(limit=limit)
-    
+    projects = ProjectManager.list_projects(
+        limit=limit,
+        account_id=current_account_id(),
+        include_all=is_superadmin()
+    )
+
     return jsonify({
         "success": True,
         "data": [p.to_dict() for p in projects],
@@ -80,6 +96,22 @@ def delete_project(project_id: str):
     """
     Delete project
     """
+    project = ProjectManager.get_project(project_id)
+
+    if not project:
+        return jsonify({
+            "success": False,
+            "error": t('api.projectNotFound', id=project_id)
+        }), 404
+
+    try:
+        require_account_access(project.account_id)
+    except PermissionError:
+        return jsonify({
+            "success": False,
+            "error": t('api.projectNotFound', id=project_id)
+        }), 404
+
     success = ProjectManager.delete_project(project_id)
 
     if not success:
@@ -102,6 +134,14 @@ def reset_project(project_id: str):
     project = ProjectManager.get_project(project_id)
 
     if not project:
+        return jsonify({
+            "success": False,
+            "error": t('api.projectNotFound', id=project_id)
+        }), 404
+
+    try:
+        require_account_access(project.account_id)
+    except PermissionError:
         return jsonify({
             "success": False,
             "error": t('api.projectNotFound', id=project_id)
@@ -181,7 +221,11 @@ def generate_ontology():
             }), 400
 
         # Create project
-        project = ProjectManager.create_project(name=project_name)
+        project = ProjectManager.create_project(
+            name=project_name,
+            owner_id=current_user_id(),
+            account_id=current_account_id()
+        )
         project.simulation_requirement = simulation_requirement
         logger.info(f"Project created: {project.project_id}")
         
@@ -310,6 +354,14 @@ def build_graph():
                 "error": t('api.projectNotFound', id=project_id)
             }), 404
 
+        try:
+            require_account_access(project.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.projectNotFound', id=project_id)
+            }), 404
+
         # Check project status
         force = data.get('force', False)  # Force rebuild
 
@@ -361,6 +413,10 @@ def build_graph():
         # Get storage in request context (background thread cannot access current_app)
         storage = _get_storage()
 
+        # Capture user id and account id in request context to propagate into the background thread
+        owner_id = current_user_id()
+        account_id = current_account_id()
+
         # Capture locale in request context to propagate into the background thread
         locale = get_locale()
 
@@ -408,7 +464,7 @@ def build_graph():
                     message=t('progress.creatingZepGraph'),
                     progress=10
                 )
-                graph_id = builder.create_graph(name=graph_name)
+                graph_id = builder.create_graph(name=graph_name, owner_id=owner_id, account_id=account_id)
 
                 # Update project graph_id
                 project.graph_id = graph_id
@@ -541,9 +597,15 @@ def get_task(task_id: str):
 
 
 @graph_bp.route('/tasks', methods=['GET'])
+@superadmin_required
 def list_tasks():
     """
-    List all tasks
+    List all tasks (superadmin only).
+
+    Tasks have no account association, so this blanket enumeration would leak
+    cross-account simulation_id/graph_id/report_id metadata. It is a debug/admin
+    listing not used by normal (non-superadmin) frontend flows, so it is gated
+    to superadmin. /task/<id> remains open (requires an unguessable task_id).
     """
     tasks = TaskManager().list_tasks()
     
@@ -562,6 +624,11 @@ def get_graph_data(graph_id: str):
     Get graph data (nodes and edges)
     """
     try:
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+
         storage = _get_storage()
         builder = GraphBuilderService(storage=storage)
         graph_data = builder.get_graph_data(graph_id)
@@ -585,6 +652,11 @@ def delete_graph(graph_id: str):
     Delete graph
     """
     try:
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+
         storage = _get_storage()
         builder = GraphBuilderService(storage=storage)
         builder.delete_graph(graph_id)

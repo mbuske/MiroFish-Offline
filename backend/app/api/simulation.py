@@ -17,6 +17,9 @@ from ..utils.logger import get_logger
 from ..utils import t, get_locale, set_locale
 from ..utils.validation import validate_simulation_id, safe_join
 from ..models.project import ProjectManager
+from ..auth.ownership import current_user_id
+from ..auth.accounts import current_account_id, is_superadmin, require_account_access
+from ..auth.graph_access import require_graph_account_access
 
 
 def _resolve_simulation_dir(simulation_id: str) -> str:
@@ -73,7 +76,12 @@ def get_graph_entities(graph_id: str):
         enrich = request.args.get('enrich', 'true').lower() == 'true'
         
         logger.info(f"Get knowledge graph entities: graph_id={graph_id}, entity_types={entity_types}, enrich={enrich}")
-        
+
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+
         storage = current_app.extensions.get('neo4j_storage')
         if not storage:
             raise ValueError("GraphStorage not initialized")
@@ -102,6 +110,11 @@ def get_graph_entities(graph_id: str):
 def get_entity_detail(graph_id: str, entity_uuid: str):
     """Get detailed information of a single entity"""
     try:
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.entityNotFound', id=entity_uuid)}), 404
+
         storage = current_app.extensions.get('neo4j_storage')
         if not storage:
             raise ValueError("GraphStorage not initialized")
@@ -133,7 +146,12 @@ def get_entities_by_type(graph_id: str, entity_type: str):
     """Get all entities of specified type"""
     try:
         enrich = request.args.get('enrich', 'true').lower() == 'true'
-        
+
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+
         storage = current_app.extensions.get('neo4j_storage')
         if not storage:
             raise ValueError("GraphStorage not initialized")
@@ -210,26 +228,44 @@ def create_simulation():
                 "error": t('api.projectNotFound', id=project_id)
             }), 404
 
+        try:
+            require_account_access(project.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.projectNotFound', id=project_id)
+            }), 404
+
+        # A simulation may only bind to the owned project's own graph.
+        requested_graph_id = data.get('graph_id')
+        if requested_graph_id and requested_graph_id != project.graph_id:
+            return jsonify({
+                "success": False,
+                "error": t('api.projectNotFound', id=project_id)
+            }), 404
+
         graph_id = data.get('graph_id') or project.graph_id
         if not graph_id:
             return jsonify({
                 "success": False,
                 "error": t('api.graphNotBuilt')
             }), 400
-        
+
         manager = SimulationManager()
         state = manager.create_simulation(
             project_id=project_id,
             graph_id=graph_id,
             enable_twitter=data.get('enable_twitter', True),
             enable_reddit=data.get('enable_reddit', True),
+            owner_id=current_user_id(),
+            account_id=current_account_id(),
         )
-        
+
         return jsonify({
             "success": True,
             "data": state.to_dict()
         })
-        
+
     except Exception as e:
         logger.error(f"Failed to create simulation: {str(e)}")
         return jsonify({
@@ -425,7 +461,15 @@ def prepare_simulation():
                 "success": False,
                 "error": t('api.simulationNotFound', id=simulation_id)
             }), 404
-        
+
+        try:
+            require_account_access(state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         # Check if forced regeneration
         force_regenerate = data.get('force_regenerate', False)
         logger.info(f"Start processing /prepare Request: simulation_id={simulation_id}, force_regenerate={force_regenerate}")
@@ -685,7 +729,24 @@ def get_prepare_status():
         
         task_id = data.get('task_id')
         simulation_id = data.get('simulation_id')
-        
+
+        # Account access check when simulation_id is provided (hard pattern: 404 for both missing and forbidden)
+        if simulation_id:
+            _mgr = SimulationManager()
+            _state = _mgr.get_simulation(simulation_id)
+            if not _state:
+                return jsonify({
+                    "success": False,
+                    "error": t('api.simulationNotFound', id=simulation_id)
+                }), 404
+            try:
+                require_account_access(_state.account_id)
+            except PermissionError:
+                return jsonify({
+                    "success": False,
+                    "error": t('api.simulationNotFound', id=simulation_id)
+                }), 404
+
         # If simulation_id is provided, check if preparation is complete
         if simulation_id:
             is_prepared, prepare_info = _check_simulation_prepared(simulation_id)
@@ -769,8 +830,16 @@ def get_simulation(simulation_id: str):
     try:
         manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
-        
+
         if not state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
+        try:
+            require_account_access(state.account_id)
+        except PermissionError:
             return jsonify({
                 "success": False,
                 "error": t('api.simulationNotFound', id=simulation_id)
@@ -800,22 +869,26 @@ def get_simulation(simulation_id: str):
 def list_simulations():
     """
     List all simulations
-    
+
     Query parameters:
         project_id: By projectIDFilter（Optional）
     """
     try:
         project_id = request.args.get('project_id')
-        
+
         manager = SimulationManager()
-        simulations = manager.list_simulations(project_id=project_id)
-        
+        simulations = manager.list_simulations(
+            project_id=project_id,
+            account_id=current_account_id(),
+            include_all=is_superadmin(),
+        )
+
         return jsonify({
             "success": True,
             "data": [s.to_dict() for s in simulations],
             "count": len(simulations)
         })
-        
+
     except Exception as e:
         logger.error(f"Failed to list simulations: {str(e)}")
         return jsonify({
@@ -921,9 +994,12 @@ def get_simulation_history():
     """
     try:
         limit = request.args.get('limit', 20, type=int)
-        
+
         manager = SimulationManager()
-        simulations = manager.list_simulations()[:limit]
+        simulations = manager.list_simulations(
+            account_id=current_account_id(),
+            include_all=is_superadmin(),
+        )[:limit]
         
         # Enhance simulation data，Only from Simulation FileRead
         enriched_simulations = []
@@ -1002,16 +1078,31 @@ def get_simulation_history():
 def get_simulation_profiles(simulation_id: str):
     """
     Get simulation'sAgent Profile
-    
+
     Query parameters:
         platform: Platform type（reddit/twitter，Defaultreddit）
     """
     try:
         platform = request.args.get('platform', 'reddit')
-        
+
         manager = SimulationManager()
+
+        state = manager.get_simulation(simulation_id)
+        if not state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         profiles = manager.get_profiles(simulation_id, platform=platform)
-        
+
         return jsonify({
             "success": True,
             "data": {
@@ -1020,7 +1111,7 @@ def get_simulation_profiles(simulation_id: str):
                 "profiles": profiles
             }
         })
-        
+
     except ValueError as e:
         return jsonify({
             "success": False,
@@ -1067,7 +1158,7 @@ def get_simulation_profiles_realtime(simulation_id: str):
     import json
     import csv
     from datetime import datetime
-    
+
     try:
         platform = request.args.get('platform', 'reddit')
 
@@ -1082,7 +1173,23 @@ def get_simulation_profiles_realtime(simulation_id: str):
                 "success": False,
                 "error": t('api.simulationNotFound', id=simulation_id)
             }), 404
-        
+
+        # Account access check (hard pattern: 404 for both missing and forbidden)
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         # Determine file path
         if platform == "reddit":
             profiles_file = os.path.join(sim_dir, "reddit_profiles.json")
@@ -1175,7 +1282,7 @@ def get_simulation_config_realtime(simulation_id: str):
     """
     import json
     from datetime import datetime
-    
+
     try:
         # Get simulation directory (validated + confined)
         try:
@@ -1188,7 +1295,23 @@ def get_simulation_config_realtime(simulation_id: str):
                 "success": False,
                 "error": t('api.simulationNotFound', id=simulation_id)
             }), 404
-        
+
+        # Account access check (hard pattern: 404 for both missing and forbidden)
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         # Config file path
         config_file = os.path.join(sim_dir, "simulation_config.json")
         
@@ -1286,8 +1409,23 @@ def get_simulation_config(simulation_id: str):
     """
     try:
         manager = SimulationManager()
+
+        state = manager.get_simulation(simulation_id)
+        if not state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         config = manager.get_simulation_config(simulation_id)
-        
+
         if not config:
             return jsonify({
                 "success": False,
@@ -1313,6 +1451,21 @@ def download_simulation_config(simulation_id: str):
     """Download simulation configuration file"""
     try:
         manager = SimulationManager()
+
+        state = manager.get_simulation(simulation_id)
+        if not state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         sim_dir = manager._get_simulation_dir(simulation_id)
         config_path = os.path.join(sim_dir, "simulation_config.json")
         
@@ -1413,7 +1566,12 @@ def generate_profiles():
                 "success": False,
                 "error": t('api.requireGraphId')
             }), 400
-        
+
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+
         entity_types = data.get('entity_types')
         use_llm = data.get('use_llm', True)
         platform = data.get('platform', 'reddit')
@@ -1555,6 +1713,14 @@ def start_simulation():
                 "error": t('api.simulationNotFound', id=simulation_id)
             }), 404
 
+        try:
+            require_account_access(state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         force_restarted = False
         
         # Intelligently handle status: if preparation work is complete, reset status to ready
@@ -1690,11 +1856,26 @@ def stop_simulation():
                 "success": False,
                 "error": t('api.requireSimulationId')
             }), 400
-        
-        run_state = SimulationRunner.stop_simulation(simulation_id)
-        
-        # Update simulation status
+
+        # Account access check before stopping
         manager = SimulationManager()
+        _state_pre = manager.get_simulation(simulation_id)
+        if not _state_pre:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state_pre.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
+        run_state = SimulationRunner.stop_simulation(simulation_id)
+
+        # Update simulation status
         state = manager.get_simulation(simulation_id)
         if state:
             state.status = SimulationStatus.PAUSED
@@ -1726,7 +1907,7 @@ def stop_simulation():
 def get_run_status(simulation_id: str):
     """
     Get simulation real-time running status（For frontend polling）
-    
+
     Returns:
         {
             "success": true,
@@ -1749,8 +1930,23 @@ def get_run_status(simulation_id: str):
         }
     """
     try:
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         run_state = SimulationRunner.get_run_state(simulation_id)
-        
+
         if not run_state:
             return jsonify({
                 "success": True,
@@ -1784,12 +1980,12 @@ def get_run_status(simulation_id: str):
 def get_run_status_detail(simulation_id: str):
     """
     Get simulation detailed running status（Include all actions）
-    
+
     For frontend to display real-time dynamics
-    
+
     Query parameters:
         platform: Filter platform（twitter/reddit，Optional）
-    
+
     Returns:
         {
             "success": true,
@@ -1818,6 +2014,21 @@ def get_run_status_detail(simulation_id: str):
         }
     """
     try:
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         run_state = SimulationRunner.get_run_state(simulation_id)
         platform_filter = request.args.get('platform')
         
@@ -1885,14 +2096,14 @@ def get_run_status_detail(simulation_id: str):
 def get_simulation_actions(simulation_id: str):
     """
     Get from simulationAgentAction history
-    
+
     Query parameters:
         limit: Return count（Default100）
         offset: Offset（Default0）
         platform: Filter platform（twitter/reddit）
         agent_id: FilterAgent ID
         round_num: Filter round
-    
+
     Returns:
         {
             "success": true,
@@ -1903,12 +2114,27 @@ def get_simulation_actions(simulation_id: str):
         }
     """
     try:
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         limit = request.args.get('limit', 100, type=int)
         offset = request.args.get('offset', 0, type=int)
         platform = request.args.get('platform')
         agent_id = request.args.get('agent_id', type=int)
         round_num = request.args.get('round_num', type=int)
-        
+
         actions = SimulationRunner.get_actions(
             simulation_id=simulation_id,
             limit=limit,
@@ -1939,19 +2165,34 @@ def get_simulation_actions(simulation_id: str):
 def get_simulation_timeline(simulation_id: str):
     """
     Get simulation timeline（Summarized by round）
-    
+
     For frontend to display progress bar and timeline view
-    
+
     Query parameters:
         start_round: Start round（Default0）
         end_round: End round（Default all）
-    
+
     Return summary information per round
     """
     try:
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         start_round = request.args.get('start_round', 0, type=int)
         end_round = request.args.get('end_round', type=int)
-        
+
         timeline = SimulationRunner.get_timeline(
             simulation_id=simulation_id,
             start_round=start_round,
@@ -1979,10 +2220,25 @@ def get_simulation_timeline(simulation_id: str):
 def get_agent_stats(simulation_id: str):
     """
     Get eachAgentStatistics
-    
+
     For frontend display of agent activity ranking and statistics.
     """
     try:
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         stats = SimulationRunner.get_agent_stats(simulation_id)
         
         return jsonify({
@@ -2008,24 +2264,39 @@ def get_agent_stats(simulation_id: str):
 def get_simulation_posts(simulation_id: str):
     """
     Get posts in simulation
-    
+
     Query parameters:
         platform: Platform type（twitter/reddit）
         limit: Return count（Default50）
         offset: Offset
-    
+
     Return post list (read from SQLite database)
     """
     try:
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         platform = request.args.get('platform', 'reddit')
         limit = request.args.get('limit', 50, type=int)
         offset = request.args.get('offset', 0, type=int)
-        
+
         sim_dir = os.path.join(
             os.path.dirname(__file__),
             f'../../uploads/simulations/{simulation_id}'
         )
-        
+
         db_file = f"{platform}_simulation.db"
         db_path = os.path.join(sim_dir, db_file)
         
@@ -2086,17 +2357,32 @@ def get_simulation_posts(simulation_id: str):
 def get_simulation_comments(simulation_id: str):
     """
     Get comments in simulation（OnlyReddit）
-    
+
     Query parameters:
         post_id: Filter postsID（Optional）
         limit: Return count
         offset: Offset
     """
     try:
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         post_id = request.args.get('post_id')
         limit = request.args.get('limit', 50, type=int)
         offset = request.args.get('offset', 0, type=int)
-        
+
         sim_dir = os.path.join(
             os.path.dirname(__file__),
             f'../../uploads/simulations/{simulation_id}'
@@ -2244,6 +2530,22 @@ def interview_agent():
                 "error": t('api.invalidInterviewPlatform')
             }), 400
 
+        # Account access check (hard pattern: 404 for both missing and forbidden)
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         # Check environment status
         if not SimulationRunner.check_env_alive(simulation_id):
             return jsonify({
@@ -2253,7 +2555,7 @@ def interview_agent():
 
         # Optimizeprompt，Add prefix to avoidAgent call tools
         optimized_prompt = optimize_interview_prompt(prompt)
-        
+
         result = SimulationRunner.interview_agent(
             simulation_id=simulation_id,
             agent_id=agent_id,
@@ -2379,6 +2681,22 @@ def interview_agents_batch():
                     "error": t('api.interviewListInvalidPlatform', index=i + 1)
                 }), 400
 
+        # Account access check (hard pattern: 404 for both missing and forbidden)
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         # Check environment status
         if not SimulationRunner.check_env_alive(simulation_id):
             return jsonify({
@@ -2486,6 +2804,22 @@ def interview_all_agents():
                 "error": t('api.invalidInterviewPlatform')
             }), 400
 
+        # Account access check (hard pattern: 404 for both missing and forbidden)
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         # Check environment status
         if not SimulationRunner.check_env_alive(simulation_id):
             return jsonify({
@@ -2577,6 +2911,22 @@ def get_interview_history():
                 "error": t('api.requireSimulationId')
             }), 400
 
+        # Account access check (hard pattern: 404 for both missing and forbidden)
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         history = SimulationRunner.get_interview_history(
             simulation_id=simulation_id,
             platform=platform,
@@ -2635,6 +2985,22 @@ def get_env_status():
                 "success": False,
                 "error": t('api.requireSimulationId')
             }), 400
+
+        # Account access check (hard pattern: 404 for both missing and forbidden)
+        _mgr = SimulationManager()
+        _state = _mgr.get_simulation(simulation_id)
+        if not _state:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
 
         env_alive = SimulationRunner.check_env_alive(simulation_id)
         
@@ -2703,14 +3069,29 @@ def close_simulation_env():
                 "success": False,
                 "error": t('api.requireSimulationId')
             }), 400
-        
+
+        # Account access check before closing
+        manager = SimulationManager()
+        _state_pre = manager.get_simulation(simulation_id)
+        if not _state_pre:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+        try:
+            require_account_access(_state_pre.account_id)
+        except PermissionError:
+            return jsonify({
+                "success": False,
+                "error": t('api.simulationNotFound', id=simulation_id)
+            }), 404
+
         result = SimulationRunner.close_simulation_env(
             simulation_id=simulation_id,
             timeout=timeout
         )
-        
+
         # Update simulation status
-        manager = SimulationManager()
         state = manager.get_simulation(simulation_id)
         if state:
             state.status = SimulationStatus.COMPLETED

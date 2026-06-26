@@ -5,6 +5,7 @@ import i18n from '../i18n'
 const service = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001',
   timeout: 300000, // 5 minute timeout (ontology generation may require longer time)
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -14,6 +15,9 @@ const service = axios.create({
 service.interceptors.request.use(
   config => {
     config.headers['Accept-Language'] = i18n.global.locale.value
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']        // let the browser set the multipart boundary
+    }
     return config
   },
   error => {
@@ -37,6 +41,12 @@ service.interceptors.response.use(
   },
   error => {
     console.error('Response error:', error)
+
+    // Handle 401 Unauthorized — redirect to login (guard against redirect loop)
+    if (error.response && error.response.status === 401 &&
+        window.location.pathname !== '/login') {
+      window.location.href = '/login'
+    }
 
     // Handle timeout
     if (error.code === 'ECONNABORTED' && error.message.includes('timeout')) {

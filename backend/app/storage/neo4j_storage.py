@@ -50,12 +50,21 @@ class Neo4jStorage(GraphStorage):
         self._driver = GraphDatabase.driver(
             self._uri, auth=(self._user, self._password)
         )
-        self._embedding = embedding_service or EmbeddingService()
-        self._ner = ner_extractor or NERExtractor()
-        self._search = SearchService(self._embedding)
+        try:
+            self._embedding = embedding_service or EmbeddingService()
+            self._ner = ner_extractor or NERExtractor()
+            self._search = SearchService(self._embedding)
 
-        # Initialize schema (indexes, constraints)
-        self._ensure_schema()
+            # Initialize schema (indexes, constraints)
+            self._ensure_schema()
+        except Exception:
+            # If any post-driver init step fails, release the driver so we don't
+            # leak the connection (and trigger the destructor DeprecationWarning).
+            try:
+                self._driver.close()
+            except Exception:
+                pass
+            raise
 
     def close(self):
         """Close the Neo4j driver connection."""
@@ -100,7 +109,7 @@ class Neo4jStorage(GraphStorage):
     # Graph lifecycle
     # ----------------------------------------------------------------
 
-    def create_graph(self, name: str, description: str = "") -> str:
+    def create_graph(self, name: str, description: str = "", owner_id: Optional[str] = None, account_id: Optional[str] = None) -> str:
         graph_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
 
@@ -111,6 +120,8 @@ class Neo4jStorage(GraphStorage):
                     graph_id: $graph_id,
                     name: $name,
                     description: $description,
+                    owner_id: $owner_id,
+                    account_id: $account_id,
                     ontology_json: '{}',
                     created_at: $created_at
                 })
@@ -118,6 +129,8 @@ class Neo4jStorage(GraphStorage):
                 graph_id=graph_id,
                 name=name,
                 description=description,
+                owner_id=owner_id,
+                account_id=account_id,
                 created_at=now,
             )
 
@@ -126,6 +139,50 @@ class Neo4jStorage(GraphStorage):
 
         logger.info(f"Created graph '{name}' with id {graph_id}")
         return graph_id
+
+    def get_graph_owner(self, graph_id: str) -> Optional[str]:
+        """Return the owner_id stored on the Graph root node, or None for legacy graphs."""
+        def _read(tx):
+            result = tx.run(
+                "MATCH (g:Graph {graph_id: $gid}) RETURN g.owner_id AS owner_id",
+                gid=graph_id,
+            )
+            record = result.single()
+            if record is None:
+                return None
+            return record["owner_id"]
+
+        with self._driver.session() as session:
+            return self._call_with_retry(session.execute_read, _read)
+
+    def get_graph_account(self, graph_id: str) -> Optional[str]:
+        """Return the account_id stored on the Graph root node, or None for legacy graphs."""
+        def _read(tx):
+            result = tx.run(
+                "MATCH (g:Graph {graph_id: $gid}) RETURN g.account_id AS account_id",
+                gid=graph_id,
+            )
+            record = result.single()
+            if record is None:
+                return None
+            return record["account_id"]
+
+        with self._driver.session() as session:
+            return self._call_with_retry(session.execute_read, _read)
+
+    def set_graph_owner_if_missing(self, admin_id: str) -> int:
+        """Backfill owner_id on Graph root nodes that have none. Returns count updated."""
+        def _set(tx):
+            result = tx.run(
+                "MATCH (g:Graph) WHERE g.owner_id IS NULL "
+                "SET g.owner_id = $admin RETURN count(g) AS updated",
+                admin=admin_id,
+            )
+            record = result.single()
+            return record["updated"] if record else 0
+
+        with self._driver.session() as session:
+            return self._call_with_retry(session.execute_write, _set)
 
     def delete_graph(self, graph_id: str) -> None:
         def _delete(tx):

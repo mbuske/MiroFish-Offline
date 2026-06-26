@@ -32,6 +32,10 @@ dependencies = [
     # 工具库
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
+
+    # Auth store
+    "Flask-SQLAlchemy>=3.1.0",
+    "bcrypt>=4.0",
 ]
 
 [project.optional-dependencies]
@@ -39,6 +43,11 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pipreqs>=0.5.0",
+]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:datetime.datetime.utcnow:DeprecationWarning",
 ]
 
 [build-system]

@@ -52,6 +52,12 @@ class Project:
     # Error information
     error: Optional[str] = None
 
+    # Ownership
+    owner_id: Optional[str] = None
+
+    # Account (tenant) scoping
+    account_id: Optional[str] = None
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
         return {
@@ -69,7 +75,9 @@ class Project:
             "simulation_requirement": self.simulation_requirement,
             "chunk_size": self.chunk_size,
             "chunk_overlap": self.chunk_overlap,
-            "error": self.error
+            "error": self.error,
+            "owner_id": self.owner_id,
+            "account_id": self.account_id
         }
     
     @classmethod
@@ -94,7 +102,9 @@ class Project:
             simulation_requirement=data.get('simulation_requirement'),
             chunk_size=data.get('chunk_size', 500),
             chunk_overlap=data.get('chunk_overlap', 50),
-            error=data.get('error')
+            error=data.get('error'),
+            owner_id=data.get('owner_id'),
+            account_id=data.get('account_id')
         )
 
 
@@ -130,12 +140,15 @@ class ProjectManager:
         return os.path.join(cls._get_project_dir(project_id), 'extracted_text.txt')
 
     @classmethod
-    def create_project(cls, name: str = "Unnamed Project") -> Project:
+    def create_project(cls, name: str = "Unnamed Project", owner_id: str = None,
+                       account_id: str = None) -> Project:
         """
         Create new project
 
         Args:
             name: Project name
+            owner_id: ID of the user creating the project (for audit/ownership)
+            account_id: ID of the account (tenant) that owns this project
 
         Returns:
             Newly created Project object
@@ -152,6 +165,8 @@ class ProjectManager:
             created_at=now,
             updated_at=now
         )
+        project.owner_id = owner_id
+        project.account_id = account_id
 
         # Create project directory structure
         project_dir = cls._get_project_dir(project_id)
@@ -195,12 +210,16 @@ class ProjectManager:
         return Project.from_dict(data)
 
     @classmethod
-    def list_projects(cls, limit: int = 50) -> List[Project]:
+    def list_projects(cls, limit: int = 50,
+                      account_id: str = None,
+                      include_all: bool = False) -> List[Project]:
         """
-        List all projects
+        List projects
 
         Args:
             limit: Result count limit
+            account_id: Filter to this account's projects (ignored when include_all=True)
+            include_all: If True, return all projects regardless of account (superadmin use)
 
         Returns:
             Project list, sorted by creation time (descending)
@@ -212,6 +231,13 @@ class ProjectManager:
             project = cls.get_project(project_id)
             if project:
                 projects.append(project)
+
+        # Apply account filter unless include_all is set.
+        # Fail closed: a non-include_all caller with no account_id matches nothing.
+        if not include_all:
+            if account_id is None:
+                return []
+            projects = [p for p in projects if p.account_id == account_id]
 
         # Sort by creation time (descending)
         projects.sort(key=lambda p: p.created_at, reverse=True)
