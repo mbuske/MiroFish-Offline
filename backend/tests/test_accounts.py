@@ -134,6 +134,15 @@ def test_superadmin_routes_forbidden_for_non_superadmin(tmp_path, monkeypatch):
     assert c.get("/api/superadmin/accounts").status_code == 403
 
 
+def test_superadmin_rename_slug(su_client):
+    aid = su_client.post("/api/superadmin/accounts", json={"name": "Acme"}).get_json()["account"]["id"]
+    r = su_client.post(f"/api/superadmin/accounts/{aid}/slug", json={"slug": "acme-eu"})
+    assert r.status_code == 200
+    listed = su_client.get("/api/superadmin/accounts").get_json()["accounts"]
+    assert any(a["id"] == aid and a["slug"] == "acme-eu" for a in listed)
+    assert su_client.post(f"/api/superadmin/accounts/{aid}/slug", json={"slug": "Bad Slug!"}).status_code == 400
+
+
 def test_account_gets_unique_slug(tmp_path):
     authdb.init_db(str(tmp_path / "auth.db"))
     a1 = acct_service.create_account("Acme Corp", created_by="su")

@@ -80,6 +80,22 @@ def test_me_returns_account_id_and_name(me_client):
     assert me["account_name"] == "Acme Corp"
 
 
+def test_me_returns_account_slug(me_client):
+    """Login as an account member; /me must return account_slug matching the account's slug."""
+    from app.accounts import service as acct_service
+    r = me_client.post("/api/auth/login", json={"email": "member@b.de", "password": "pw12345"})
+    assert r.status_code == 200
+    user = r.get_json()["user"]
+    assert "account_slug" in user
+    aid = user["account_id"]
+    expected_slug = acct_service.get_account(aid).slug
+    assert user["account_slug"] == expected_slug
+
+    r2 = me_client.get("/api/auth/me")
+    assert r2.status_code == 200
+    assert r2.get_json()["user"]["account_slug"] == expected_slug
+
+
 def test_me_superadmin_has_null_account(me_client):
     """A superadmin (account_id=None) gets null account fields on /me."""
     from app.auth.models import ROLE_SUPERADMIN

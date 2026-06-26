@@ -57,6 +57,17 @@ def create_account_admin(account_id):
     return jsonify({"success": True, "user": _u(user_service.get_user(uid))}), 201
 
 
+@superadmin_bp.route("/accounts/<account_id>/slug", methods=["POST"])
+@superadmin_required
+def set_slug(account_id):
+    slug = (request.get_json(silent=True) or {}).get("slug", "")
+    try:
+        acct_service.set_account_slug(account_id, slug)
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    return jsonify({"success": True})
+
+
 @superadmin_bp.route("/accounts/<account_id>/users", methods=["GET"])
 @superadmin_required
 def account_users(account_id):

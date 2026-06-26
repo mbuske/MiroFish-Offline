@@ -65,6 +65,20 @@ def list_accounts():
         return out
 
 
+def set_account_slug(account_id, slug):
+    """Set the slug of an existing account. Validates format and uniqueness."""
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug or ""):
+        raise ValueError("invalid slug")
+    with authdb.session_scope() as s:
+        a = s.query(Account).filter_by(id=account_id).first()
+        if not a:
+            raise ValueError("no such account")
+        existing = s.query(Account).filter_by(slug=slug).first()
+        if existing and existing.id != account_id:
+            raise ValueError("slug taken")
+        a.slug = slug
+
+
 def set_account_active(account_id, active):
     with authdb.session_scope() as s:
         a = s.query(Account).filter_by(id=account_id).first()
