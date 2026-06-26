@@ -407,3 +407,31 @@ class TestAdminRoutes:
         j = r.get_json()
         assert j["success"] is True
         assert j["favicon_url"] == "/api/branding/favicon"
+
+
+# ---------------------------------------------------------------------------
+# Account-admin branding API (Task 6)
+# ---------------------------------------------------------------------------
+
+def test_account_admin_edits_own_branding(tmp_path, monkeypatch):
+    from flask import Flask
+    from app.auth import db as authdb, service as us
+    from app.accounts import service as acct
+    from app.branding import service as br
+    from app.auth.routes import auth_bp
+    from app.branding.account_routes import branding_account_bp
+    from app.security import register_auth
+    from app.config import Config
+    from app.auth.models import ROLE_ACCOUNT_ADMIN
+    monkeypatch.setattr(Config, "AUTH_DB_PATH", str(tmp_path / "auth.db"))
+    monkeypatch.setattr(Config, "API_TOKEN", "")
+    monkeypatch.setattr(br, "BRANDING_DIR", str(tmp_path / "branding"))
+    authdb.init_db(Config.AUTH_DB_PATH)
+    aid = acct.create_account("Acme", "su")
+    us.create_user("adm@x.de", "pw12345", role=ROLE_ACCOUNT_ADMIN, account_id=aid)
+    app = Flask(__name__); app.config.from_object(Config)
+    app.register_blueprint(auth_bp); app.register_blueprint(branding_account_bp); register_auth(app)
+    c = app.test_client()
+    c.post("/api/auth/login", json={"email": "adm@x.de", "password": "pw12345"})
+    assert c.post("/api/account/branding", json={"primary_color": "#abcdef"}).status_code == 200
+    assert br.get_branding(aid)["primary_color"] == "#abcdef"

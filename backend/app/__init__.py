@@ -52,12 +52,14 @@ def create_app(config_class=Config):
     from .auth.admin_routes import admin_bp
     from .branding.routes import branding_bp
     from .branding.admin_routes import branding_admin_bp
+    from .branding.account_routes import branding_account_bp
     from .accounts.routes import superadmin_bp
     init_db(Config.AUTH_DB_PATH)
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(branding_bp)
     app.register_blueprint(branding_admin_bp)
+    app.register_blueprint(branding_account_bp)
     app.register_blueprint(superadmin_bp)
     try:
         seed_admin_from_env()
