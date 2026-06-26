@@ -5,6 +5,7 @@ from . import service as acct_service
 from ..auth import service as user_service
 from ..auth.decorators import superadmin_required
 from ..auth.models import ROLE_ACCOUNT_ADMIN
+from ..branding import service as branding_service
 
 superadmin_bp = Blueprint("superadmin", __name__, url_prefix="/api/superadmin")
 
@@ -72,3 +73,51 @@ def set_slug(account_id):
 @superadmin_required
 def account_users(account_id):
     return jsonify({"success": True, "users": [_u(u) for u in user_service.list_users(account_id=account_id)]})
+
+
+@superadmin_bp.route("/accounts/<account_id>/branding", methods=["POST"])
+@superadmin_required
+def update_account_branding(account_id):
+    if not acct_service.get_account(account_id):
+        return jsonify({"success": False, "error": "account not found"}), 404
+    d = request.get_json(silent=True) or {}
+    try:
+        branding_service.update_colors(
+            account_id,
+            primary_color=d.get("primary_color"),
+            accent_color=d.get("accent_color"),
+            updated_by=g.current_user.id,
+        )
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    return jsonify({"success": True})
+
+
+@superadmin_bp.route("/accounts/<account_id>/branding/logo", methods=["POST"])
+@superadmin_required
+def upload_account_logo(account_id):
+    if not acct_service.get_account(account_id):
+        return jsonify({"success": False, "error": "account not found"}), 404
+    f = request.files.get("file")
+    if f is None:
+        return jsonify({"success": False, "error": "Missing file field"}), 400
+    try:
+        branding_service.save_asset(account_id, "logo", f, updated_by=g.current_user.id)
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    return jsonify({"success": True, "logo_url": f"/api/branding/logo?account={account_id}"})
+
+
+@superadmin_bp.route("/accounts/<account_id>/branding/favicon", methods=["POST"])
+@superadmin_required
+def upload_account_favicon(account_id):
+    if not acct_service.get_account(account_id):
+        return jsonify({"success": False, "error": "account not found"}), 404
+    f = request.files.get("file")
+    if f is None:
+        return jsonify({"success": False, "error": "Missing file field"}), 400
+    try:
+        branding_service.save_asset(account_id, "favicon", f, updated_by=g.current_user.id)
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    return jsonify({"success": True, "favicon_url": f"/api/branding/favicon?account={account_id}"})

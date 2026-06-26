@@ -13,6 +13,7 @@ from app.config import Config
 import app.branding.service as branding_service
 from app.branding.routes import branding_bp
 from app.branding.admin_routes import branding_admin_bp
+from app.accounts.routes import superadmin_bp
 
 
 # ---------------------------------------------------------------------------
@@ -34,6 +35,26 @@ def auth_db(tmp_path, monkeypatch):
     monkeypatch.setattr(Config, "API_TOKEN", "")
     authdb.init_db(db_path)
     return db_path
+
+
+@pytest.fixture()
+def su_client(auth_db, monkeypatch):
+    """Flask test client logged in as superadmin with all relevant blueprints."""
+    # auth_db is a path like /tmp/.../auth.db; redirect BRANDING_DIR to sibling dir
+    import os
+    monkeypatch.setattr(branding_service, "BRANDING_DIR",
+                        os.path.join(os.path.dirname(auth_db), "branding"))
+    auth_service.create_user("root@x.de", "rootpw12", role=ROLE_SUPERADMIN, account_id=None)
+    app = Flask(__name__)
+    app.config.from_object(Config)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(branding_admin_bp)
+    app.register_blueprint(superadmin_bp)
+    register_auth(app)
+    c = app.test_client()
+    c.post("/api/auth/login", json={"email": "root@x.de", "password": "rootpw12"})
+    return c
 
 
 @pytest.fixture()
@@ -435,3 +456,63 @@ def test_account_admin_edits_own_branding(tmp_path, monkeypatch):
     c.post("/api/auth/login", json={"email": "adm@x.de", "password": "pw12345"})
     assert c.post("/api/account/branding", json={"primary_color": "#abcdef"}).status_code == 200
     assert br.get_branding(aid)["primary_color"] == "#abcdef"
+
+
+# ---------------------------------------------------------------------------
+# Task 7: superadmin per-account branding + default-row admin routes
+# ---------------------------------------------------------------------------
+
+def test_superadmin_edits_account_and_default(su_client):
+    aid = su_client.post("/api/superadmin/accounts", json={"name": "Acme"}).get_json()["account"]["id"]
+    assert su_client.post(f"/api/superadmin/accounts/{aid}/branding", json={"primary_color": "#0a0a0a"}).status_code == 200
+    assert su_client.post("/api/admin/branding", json={"primary_color": "#ffffff"}).status_code == 200
+    from app.branding import service as br
+    assert br.get_branding(aid)["primary_color"] == "#0a0a0a"
+    assert br.get_branding(None)["primary_color"] == "#ffffff"
+
+
+def test_superadmin_account_branding_404_for_missing_account(su_client):
+    r = su_client.post("/api/superadmin/accounts/nonexistent/branding", json={"primary_color": "#123456"})
+    assert r.status_code == 404
+
+
+def test_superadmin_account_branding_400_for_invalid_color(su_client):
+    aid = su_client.post("/api/superadmin/accounts", json={"name": "Acme2"}).get_json()["account"]["id"]
+    r = su_client.post(f"/api/superadmin/accounts/{aid}/branding", json={"primary_color": "bad"})
+    assert r.status_code == 400
+
+
+def test_superadmin_account_logo_upload(su_client):
+    aid = su_client.post("/api/superadmin/accounts", json={"name": "LogoCo"}).get_json()["account"]["id"]
+    data = {"file": (io.BytesIO(b"\x89PNG"), "logo.png")}
+    r = su_client.post(f"/api/superadmin/accounts/{aid}/branding/logo",
+                       data=data, content_type="multipart/form-data")
+    assert r.status_code == 200
+    from app.branding import service as br
+    assert br.get_branding(aid)["logo_filename"] == "logo.png"
+
+
+def test_superadmin_account_favicon_upload(su_client):
+    aid = su_client.post("/api/superadmin/accounts", json={"name": "FavCo"}).get_json()["account"]["id"]
+    data = {"file": (io.BytesIO(b"ICO"), "fav.ico")}
+    r = su_client.post(f"/api/superadmin/accounts/{aid}/branding/favicon",
+                       data=data, content_type="multipart/form-data")
+    assert r.status_code == 200
+    from app.branding import service as br
+    assert br.get_branding(aid)["favicon_filename"] == "favicon.ico"
+
+
+def test_superadmin_account_logo_missing_file_returns_400(su_client):
+    aid = su_client.post("/api/superadmin/accounts", json={"name": "NoCo"}).get_json()["account"]["id"]
+    r = su_client.post(f"/api/superadmin/accounts/{aid}/branding/logo")
+    assert r.status_code == 400
+
+
+def test_admin_branding_writes_global_default(su_client):
+    """POST /api/admin/branding must write the global default row (account_id=None)."""
+    r = su_client.post("/api/admin/branding", json={"primary_color": "#aabbcc", "accent_color": "#112233"})
+    assert r.status_code == 200
+    from app.branding import service as br
+    result = br.get_branding(None)
+    assert result["primary_color"] == "#aabbcc"
+    assert result["accent_color"] == "#112233"
