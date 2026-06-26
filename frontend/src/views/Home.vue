@@ -4,9 +4,6 @@
     <nav class="navbar" :style="s.navbar">
       <div class="nav-brand" :style="s.navBrand">{{ $t('common.brand') }}</div>
       <div class="nav-links" :style="s.navLinks">
-        <a href="https://github.com/nikmcfly/MiroFish-Offline" target="_blank" class="github-link" :style="s.githubLink">
-          {{ $t('nav.visitGithub') }} <span>↗</span>
-        </a>
         <UserMenu />
       </div>
     </nav>
@@ -164,7 +161,6 @@ const s = reactive({
   navbar: { height: '60px', background: '#000', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 40px' },
   navBrand: { fontFamily: mono, fontWeight: '800', letterSpacing: '1px', fontSize: '1.2rem' },
   navLinks: { display: 'flex', alignItems: 'center' },
-  githubLink: { color: '#fff', textDecoration: 'none', fontFamily: mono, fontSize: '0.9rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' },
   mainContent: { maxWidth: '1400px', margin: '0 auto', padding: '60px 40px' },
   heroSection: { display: 'flex', justifyContent: 'space-between', marginBottom: '80px', position: 'relative' },
   heroLeft: { flex: '1', paddingRight: '60px' },

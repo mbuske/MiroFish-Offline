@@ -30,22 +30,6 @@
   align-items: center;
 }
 
-.github-link {
-  color: #FFFFFF;
-  text-decoration: none;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.9rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: opacity 0.2s;
-}
-
-.github-link:hover {
-  opacity: 0.8;
-}
-
 .arrow {
   font-family: sans-serif;
 }
