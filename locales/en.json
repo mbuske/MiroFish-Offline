@@ -953,6 +953,23 @@
     "adminPassword": "Admin password",
     "cancel": "Cancel",
     "noAccounts": "No accounts yet.",
-    "accountName": "Account"
+    "accountName": "Account",
+    "slug": "Slug",
+    "rename": "Rename",
+    "save": "Save",
+    "slugError": "Failed to rename slug",
+    "users": "Users",
+    "usersOf": "Users of {name}",
+    "noUsers": "No users in this account.",
+    "usersLoadError": "Failed to load users",
+    "editBranding": "Edit branding",
+    "brandingOf": "Branding: {name}",
+    "brandingSaved": "Colors saved.",
+    "brandingError": "Failed to save branding",
+    "logoUploaded": "Logo uploaded.",
+    "logoError": "Failed to upload logo",
+    "faviconUploaded": "Favicon uploaded.",
+    "faviconError": "Failed to upload favicon",
+    "brandingLoadError": "Failed to load branding"
   }
 }

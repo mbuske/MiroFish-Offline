@@ -953,6 +953,23 @@
     "adminPassword": "Admin-Passwort",
     "cancel": "Abbrechen",
     "noAccounts": "Noch keine Accounts.",
-    "accountName": "Account"
+    "accountName": "Account",
+    "slug": "Slug",
+    "rename": "Umbenennen",
+    "save": "Speichern",
+    "slugError": "Slug konnte nicht umbenannt werden",
+    "users": "Benutzer",
+    "usersOf": "Benutzer von {name}",
+    "noUsers": "Keine Benutzer in diesem Account.",
+    "usersLoadError": "Benutzer konnten nicht geladen werden",
+    "editBranding": "Darstellung bearbeiten",
+    "brandingOf": "Darstellung: {name}",
+    "brandingSaved": "Farben gespeichert.",
+    "brandingError": "Darstellung konnte nicht gespeichert werden",
+    "logoUploaded": "Logo hochgeladen.",
+    "logoError": "Logo konnte nicht hochgeladen werden",
+    "faviconUploaded": "Favicon hochgeladen.",
+    "faviconError": "Favicon konnte nicht hochgeladen werden",
+    "brandingLoadError": "Darstellung konnte nicht geladen werden"
   }
 }
