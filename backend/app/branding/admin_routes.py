@@ -16,6 +16,7 @@ def update_colors():
     d = request.get_json(silent=True) or {}
     try:
         branding_service.update_colors(
+            account_id=None,
             primary_color=d.get("primary_color"),
             accent_color=d.get("accent_color"),
             updated_by=current_user_id(),
@@ -32,7 +33,7 @@ def upload_logo():
     if f is None:
         return jsonify({"success": False, "error": "Missing file field"}), 400
     try:
-        branding_service.save_asset("logo", f, updated_by=current_user_id())
+        branding_service.save_asset(None, "logo", f, updated_by=current_user_id())
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
     return jsonify({"success": True, "logo_url": "/api/branding/logo"})
@@ -45,7 +46,7 @@ def upload_favicon():
     if f is None:
         return jsonify({"success": False, "error": "Missing file field"}), 400
     try:
-        branding_service.save_asset("favicon", f, updated_by=current_user_id())
+        branding_service.save_asset(None, "favicon", f, updated_by=current_user_id())
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
     return jsonify({"success": True, "favicon_url": "/api/branding/favicon"})

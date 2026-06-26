@@ -109,7 +109,7 @@ def test_branding_rows_keyed_by_account(tmp_path):
 
 class TestGetBranding:
     def test_returns_nones_when_unset(self, auth_db):
-        result = branding_service.get_branding()
+        result = branding_service.get_branding(account_id=None)
         assert result == {
             "primary_color": None,
             "accent_color": None,
@@ -120,43 +120,43 @@ class TestGetBranding:
 
 class TestUpdateColors:
     def test_persists_and_round_trips(self, auth_db):
-        branding_service.update_colors("#ff0000", "#00ff00", updated_by="user-1")
-        result = branding_service.get_branding()
+        branding_service.update_colors(None, "#ff0000", "#00ff00", updated_by="user-1")
+        result = branding_service.get_branding(account_id=None)
         assert result["primary_color"] == "#ff0000"
         assert result["accent_color"] == "#00ff00"
 
     def test_invalid_primary_color_raises_value_error(self, auth_db):
         with pytest.raises(ValueError, match="primary_color"):
-            branding_service.update_colors("red", None, updated_by=None)
+            branding_service.update_colors(None, "red", None, updated_by=None)
 
     def test_invalid_accent_color_raises_value_error(self, auth_db):
         with pytest.raises(ValueError, match="accent_color"):
-            branding_service.update_colors(None, "not-a-color", updated_by=None)
+            branding_service.update_colors(None, None, "not-a-color", updated_by=None)
 
     def test_empty_string_color_is_accepted(self, auth_db):
         # empty string means "unset", should not raise
-        branding_service.update_colors("", "", updated_by=None)
-        result = branding_service.get_branding()
+        branding_service.update_colors(None, "", "", updated_by=None)
+        result = branding_service.get_branding(account_id=None)
         assert result["primary_color"] is None
         assert result["accent_color"] is None
 
     def test_none_color_is_accepted(self, auth_db):
-        branding_service.update_colors(None, None, updated_by=None)
+        branding_service.update_colors(None, None, None, updated_by=None)
 
     def test_three_char_hex_is_valid(self, auth_db):
-        branding_service.update_colors("#abc", "#def", updated_by=None)
-        result = branding_service.get_branding()
+        branding_service.update_colors(None, "#abc", "#def", updated_by=None)
+        result = branding_service.get_branding(account_id=None)
         assert result["primary_color"] == "#abc"
 
     def test_eight_char_hex_is_valid(self, auth_db):
-        branding_service.update_colors("#aabbccdd", None, updated_by=None)
-        result = branding_service.get_branding()
+        branding_service.update_colors(None, "#aabbccdd", None, updated_by=None)
+        result = branding_service.get_branding(account_id=None)
         assert result["primary_color"] == "#aabbccdd"
 
     def test_upsert_overwrites_previous_value(self, auth_db):
-        branding_service.update_colors("#111111", None, updated_by=None)
-        branding_service.update_colors("#222222", None, updated_by=None)
-        result = branding_service.get_branding()
+        branding_service.update_colors(None, "#111111", None, updated_by=None)
+        branding_service.update_colors(None, "#222222", None, updated_by=None)
+        result = branding_service.get_branding(account_id=None)
         assert result["primary_color"] == "#222222"
 
 
@@ -168,36 +168,36 @@ class TestSaveAsset:
     def test_rejects_bad_extension(self, auth_db):
         f = self._make_file("logo.exe")
         with pytest.raises(ValueError, match="extension"):
-            branding_service.save_asset("logo", f, updated_by=None)
+            branding_service.save_asset(None, "logo", f, updated_by=None)
 
     def test_rejects_bad_kind(self, auth_db):
         f = self._make_file("logo.png")
         with pytest.raises(ValueError, match="kind"):
-            branding_service.save_asset("banner", f, updated_by=None)
+            branding_service.save_asset(None, "banner", f, updated_by=None)
 
     def test_saves_logo_and_sets_filename(self, auth_db, tmp_path):
         f = self._make_file("mylogo.png", b"\x89PNG\r\n")
-        filename = branding_service.save_asset("logo", f, updated_by="user-1")
+        filename = branding_service.save_asset(None, "logo", f, updated_by="user-1")
         assert filename == "logo.png"
         import os
-        assert os.path.isfile(os.path.join(branding_service.BRANDING_DIR, "logo.png"))
-        result = branding_service.get_branding()
+        assert os.path.isfile(os.path.join(branding_service.BRANDING_DIR, "default", "logo.png"))
+        result = branding_service.get_branding(account_id=None)
         assert result["logo_filename"] == "logo.png"
 
     def test_saves_favicon_and_sets_filename(self, auth_db):
         f = self._make_file("fav.ico", b"ICO")
-        filename = branding_service.save_asset("favicon", f, updated_by="user-1")
+        filename = branding_service.save_asset(None, "favicon", f, updated_by="user-1")
         assert filename == "favicon.ico"
-        result = branding_service.get_branding()
+        result = branding_service.get_branding(account_id=None)
         assert result["favicon_filename"] == "favicon.ico"
 
     def test_overwrite_keeps_latest(self, auth_db):
         f1 = self._make_file("logo1.png", b"old")
-        branding_service.save_asset("logo", f1, updated_by=None)
+        branding_service.save_asset(None, "logo", f1, updated_by=None)
         f2 = self._make_file("logo2.png", b"new")
-        branding_service.save_asset("logo", f2, updated_by=None)
+        branding_service.save_asset(None, "logo", f2, updated_by=None)
         import os
-        path = os.path.join(branding_service.BRANDING_DIR, "logo.png")
+        path = os.path.join(branding_service.BRANDING_DIR, "default", "logo.png")
         assert open(path, "rb").read() == b"new"
 
 
@@ -207,19 +207,37 @@ class TestAssetPath:
         return FileStorage(stream=io.BytesIO(content), filename=name)
 
     def test_returns_none_when_no_row(self, auth_db):
-        assert branding_service.asset_path("logo") is None
+        assert branding_service.asset_path(None, "logo") is None
 
     def test_returns_none_when_file_missing(self, auth_db):
-        branding_service.save_asset("logo", self._make_file("l.png"), updated_by=None)
+        branding_service.save_asset(None, "logo", self._make_file("l.png"), updated_by=None)
         import os
-        os.remove(os.path.join(branding_service.BRANDING_DIR, "logo.png"))
-        assert branding_service.asset_path("logo") is None
+        os.remove(os.path.join(branding_service.BRANDING_DIR, "default", "logo.png"))
+        assert branding_service.asset_path(None, "logo") is None
 
     def test_returns_path_when_file_exists(self, auth_db):
-        branding_service.save_asset("logo", self._make_file("l.svg", b"<svg/>"), updated_by=None)
-        path = branding_service.asset_path("logo")
+        branding_service.save_asset(None, "logo", self._make_file("l.svg", b"<svg/>"), updated_by=None)
+        path = branding_service.asset_path(None, "logo")
         import os
         assert path is not None and os.path.isfile(path)
+
+
+# ---------------------------------------------------------------------------
+# New: resolve_branding fallback test (RED → GREEN driver for Task 4)
+# ---------------------------------------------------------------------------
+
+def test_resolve_falls_back_to_default(tmp_path):
+    authdb.init_db(str(tmp_path / "auth.db"))
+    import app.branding.service as br
+    br.update_colors(None, "#111111", "#222222", "su")          # global default
+    br.update_colors("accA", "#ff0000", None, "admin")           # account overrides primary only
+    res = br.resolve_branding("accA")
+    assert res["primary_color"] == "#ff0000"   # account wins
+    assert res["accent_color"] == "#222222"    # falls back to default
+    res_default = br.resolve_branding(None)
+    assert res_default["primary_color"] == "#111111"
+    res_unknown = br.resolve_branding("nope")  # no row → all from default
+    assert res_unknown["accent_color"] == "#222222"
 
 
 # ---------------------------------------------------------------------------
@@ -255,7 +273,7 @@ class TestPublicRoutes:
         """After saving a logo, GET /api/branding/logo returns 200."""
         from werkzeug.datastructures import FileStorage
         f = FileStorage(stream=io.BytesIO(b"\x89PNG"), filename="l.png")
-        branding_service.save_asset("logo", f, updated_by=None)
+        branding_service.save_asset(None, "logo", f, updated_by=None)
 
         # Build a client that includes the branding_bp
         app = Flask(__name__)
@@ -286,7 +304,7 @@ class TestAdminRoutes:
         )
         assert r.status_code == 200
         assert r.get_json()["success"] is True
-        result = branding_service.get_branding()
+        result = branding_service.get_branding(account_id=None)
         assert result["primary_color"] == "#123456"
         assert result["accent_color"] == "#abcdef"
 

@@ -8,16 +8,16 @@ branding_bp = Blueprint("branding", __name__, url_prefix="/api/branding")
 
 @branding_bp.route("/config", methods=["GET"])
 def get_config():
-    data = branding_service.get_branding()
+    data = branding_service.get_branding(account_id=None)
 
     logo_url = (
         "/api/branding/logo"
-        if branding_service.asset_path("logo") is not None
+        if branding_service.asset_path(None, "logo") is not None
         else None
     )
     favicon_url = (
         "/api/branding/favicon"
-        if branding_service.asset_path("favicon") is not None
+        if branding_service.asset_path(None, "favicon") is not None
         else None
     )
 
@@ -34,7 +34,7 @@ def get_config():
 
 @branding_bp.route("/logo", methods=["GET"])
 def get_logo():
-    path = branding_service.asset_path("logo")
+    path = branding_service.asset_path(None, "logo")
     if path is None:
         return jsonify({"success": False, "error": "No logo configured"}), 404
     return send_file(path)
@@ -42,7 +42,7 @@ def get_logo():
 
 @branding_bp.route("/favicon", methods=["GET"])
 def get_favicon():
-    path = branding_service.asset_path("favicon")
+    path = branding_service.asset_path(None, "favicon")
     if path is None:
         return jsonify({"success": False, "error": "No favicon configured"}), 404
     return send_file(path)
