@@ -970,6 +970,10 @@
     "logoError": "Logo konnte nicht hochgeladen werden",
     "faviconUploaded": "Favicon hochgeladen.",
     "faviconError": "Favicon konnte nicht hochgeladen werden",
-    "brandingLoadError": "Darstellung konnte nicht geladen werden"
+    "brandingLoadError": "Darstellung konnte nicht geladen werden",
+    "loadError": "Accounts konnten nicht geladen werden",
+    "createAccountError": "Account konnte nicht angelegt werden",
+    "toggleActiveError": "Status konnte nicht aktualisiert werden",
+    "createAdminError": "Admin konnte nicht angelegt werden"
   }
 }

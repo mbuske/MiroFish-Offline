@@ -215,7 +215,7 @@ async function loadAccounts() {
     const res = await api.get('/api/superadmin/accounts')
     accounts.value = res.accounts
   } catch (e) {
-    loadError.value = e.message || 'Failed to load accounts'
+    loadError.value = e.response?.data?.error || $t('accounts.loadError')
   }
 }
 
@@ -227,7 +227,7 @@ async function createAccount() {
     newAccountName.value = ''
     await loadAccounts()
   } catch (e) {
-    createError.value = e.message || 'Failed to create account'
+    createError.value = e.response?.data?.error || $t('accounts.createAccountError')
   } finally {
     busy.value = false
   }
@@ -240,7 +240,7 @@ async function toggleActive(acc) {
     await api.post(`/api/superadmin/accounts/${acc.id}/active`, { active: !acc.is_active })
     await loadAccounts()
   } catch (e) {
-    actionError.value = e.message || 'Failed to update active status'
+    actionError.value = e.response?.data?.error || $t('accounts.toggleActiveError')
   } finally {
     busy.value = false
   }
@@ -280,7 +280,7 @@ async function createAdmin() {
     closeCreateAdmin()
     await loadAccounts()
   } catch (e) {
-    adminForm.value.error = e.message || 'Failed to create admin'
+    adminForm.value.error = e.response?.data?.error || $t('accounts.createAdminError')
   } finally {
     busy.value = false
   }
@@ -312,7 +312,7 @@ async function saveSlug(acc) {
     cancelRename()
     await loadAccounts()
   } catch (e) {
-    slugErrors.value[acc.id] = e.response?.data?.error || e.message || 'Failed to rename slug'
+    slugErrors.value[acc.id] = e.response?.data?.error || $t('accounts.slugError')
   } finally {
     busy.value = false
   }
@@ -337,7 +337,7 @@ async function toggleUsers(acc) {
     const res = await api.get(`/api/superadmin/accounts/${acc.id}/users`)
     usersByAccount.value[acc.id] = res.users
   } catch (e) {
-    usersErrors.value[acc.id] = e.message || 'Failed to load users'
+    usersErrors.value[acc.id] = e.response?.data?.error || $t('accounts.usersLoadError')
     expanded.value[acc.id] = false
   } finally {
     usersLoading.value[acc.id] = false
@@ -385,8 +385,8 @@ async function openBranding(acc) {
     const cfg = await api.get(`/api/branding/config?account=${encodeURIComponent(acc.slug)}`)
     if (cfg.primary_color) brandingForm.value.primaryColor = cfg.primary_color
     if (cfg.accent_color) brandingForm.value.accentColor = cfg.accent_color
-  } catch {
-    // non-fatal: use defaults
+  } catch (e) {
+    brandingForm.value.colorErr = e.response?.data?.error || $t('accounts.brandingLoadError')
   } finally {
     brandingForm.value.loading = false
   }
@@ -422,7 +422,7 @@ async function saveBrandingColors() {
     })
     brandingForm.value.colorMsg = $t('accounts.brandingSaved')
   } catch (e) {
-    brandingForm.value.colorErr = e.response?.data?.error || e.message || 'Failed to save branding'
+    brandingForm.value.colorErr = e.response?.data?.error || $t('accounts.brandingError')
   } finally {
     busy.value = false
   }
@@ -440,7 +440,7 @@ async function uploadLogo() {
     brandingForm.value.logoMsg = $t('accounts.logoUploaded')
     brandingForm.value.logoFile = null
   } catch (e) {
-    brandingForm.value.logoErr = e.response?.data?.error || e.message || 'Failed to upload logo'
+    brandingForm.value.logoErr = e.response?.data?.error || $t('accounts.logoError')
   } finally {
     busy.value = false
   }
@@ -458,7 +458,7 @@ async function uploadFavicon() {
     brandingForm.value.faviconMsg = $t('accounts.faviconUploaded')
     brandingForm.value.faviconFile = null
   } catch (e) {
-    brandingForm.value.faviconErr = e.response?.data?.error || e.message || 'Failed to upload favicon'
+    brandingForm.value.faviconErr = e.response?.data?.error || $t('accounts.faviconError')
   } finally {
     busy.value = false
   }

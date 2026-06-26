@@ -970,6 +970,10 @@
     "logoError": "Failed to upload logo",
     "faviconUploaded": "Favicon uploaded.",
     "faviconError": "Failed to upload favicon",
-    "brandingLoadError": "Failed to load branding"
+    "brandingLoadError": "Failed to load branding",
+    "loadError": "Failed to load accounts",
+    "createAccountError": "Failed to create account",
+    "toggleActiveError": "Failed to update active status",
+    "createAdminError": "Failed to create admin"
   }
 }
