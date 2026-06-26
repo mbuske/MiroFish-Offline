@@ -1,5 +1,6 @@
 import { reactive, computed } from 'vue'
 import api from '@/api'
+import { useBranding } from './branding'
 
 const state = reactive({ user: null, ready: false })
 
@@ -9,6 +10,7 @@ export function useAuth() {
     ready: computed(() => state.ready),
     isAuthenticated: computed(() => !!state.user),
     accountName: computed(() => state.user?.account_name ?? null),
+    accountSlug: computed(() => state.user?.account_slug ?? null),
     isSuperadmin: computed(() => state.user?.role === 'superadmin'),
     isAccountAdmin: computed(() => state.user?.role === 'account_admin'),
     async fetchMe() {
@@ -17,12 +19,18 @@ export function useAuth() {
         // so api.* resolves to the payload object ({success, user}) directly.
         const res = await api.get('/api/auth/me')
         state.user = res.user
+        if (state.user) {
+          useBranding().applyBranding(state.user.account_slug ?? null).catch(() => {})
+        }
       } catch { state.user = null }
       finally { state.ready = true }
     },
     async login(email, password) {
       const res = await api.post('/api/auth/login', { email, password })
       state.user = res.user
+      if (state.user) {
+        useBranding().applyBranding(state.user.account_slug ?? null).catch(() => {})
+      }
       return res.user
     },
     async logout() {
