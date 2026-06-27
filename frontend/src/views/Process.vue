@@ -60,6 +60,11 @@
                 <span v-if="selectedItem.type === 'node'" class="detail-badge" :style="{ background: selectedItem.color }">
                   {{ selectedItem.entityType }}
                 </span>
+                <div class="detail-actions">
+                  <button v-if="!editMode" class="da-btn" @click="startEdit">{{ $t('graph.edit') }}</button>
+                  <button v-else class="da-btn" @click="saveEdit">{{ $t('common.save') }}</button>
+                  <button class="da-btn da-del" @click="deleteSelected">{{ $t('graph.delete') }}</button>
+                </div>
                 <button class="detail-close" @click="closeDetailPanel">×</button>
               </div>
               
@@ -102,8 +107,32 @@
                     <span v-for="label in selectedItem.data.labels" :key="label" class="label-tag">{{ label }}</span>
                   </div>
                 </div>
+
+                <!-- Node edit fields -->
+                <div v-if="editMode" class="detail-edit">
+                  <input v-model="editBuffer.name" :placeholder="$t('graph.nodeName')" class="de-input" />
+                  <select v-model="editBuffer.entity_type" class="de-input">
+                    <option v-for="opt in [...new Set([...ontologyTypeOptions, editBuffer.entity_type].filter(Boolean))]"
+                            :key="opt" :value="opt">{{ opt }}</option>
+                  </select>
+                  <textarea v-model="editBuffer.summary" :placeholder="$t('graph.summary')" class="de-input"></textarea>
+                </div>
+
+                <!-- Merge UI (node only) -->
+                <div v-if="graphData && graphData.nodes && graphData.nodes.length > 1" class="detail-merge">
+                  <div class="detail-label">{{ $t('graph.mergeInto') }}</div>
+                  <div class="merge-candidates">
+                    <label v-for="node in graphData.nodes.filter(n => n.uuid !== selectedItem.data.uuid)" :key="node.uuid" class="merge-candidate">
+                      <input type="checkbox"
+                             :checked="mergeSelection.includes(node.uuid)"
+                             @change="toggleMergeCandidate(node.uuid)" />
+                      {{ node.name }}
+                    </label>
+                  </div>
+                  <button class="da-btn" :disabled="!mergeSelection.length" @click="doMerge">{{ $t('graph.mergeInto') }}</button>
+                </div>
               </div>
-              
+
               <!-- Edge details -->
               <div v-else class="detail-content">
                 <!-- Relationship display -->
@@ -159,6 +188,12 @@
                 <div class="detail-row" v-if="selectedItem.data.expired_at">
                   <span class="detail-label">{{ $t('process.fieldExpiredAt') }}:</span>
                   <span class="detail-value">{{ formatDate(selectedItem.data.expired_at) }}</span>
+                </div>
+
+                <!-- Edge edit fields -->
+                <div v-if="editMode" class="detail-edit">
+                  <input v-model="editBuffer.fact_type" :placeholder="$t('graph.factType')" class="de-input" />
+                  <textarea v-model="editBuffer.fact" :placeholder="$t('graph.fact')" class="de-input"></textarea>
                 </div>
               </div>
             </div>
@@ -392,7 +427,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
+import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData, updateNode, deleteNode, updateEdge, deleteEdge, mergeNodes } from '../api/graph'
 import OntologyEditor from '@/components/OntologyEditor.vue'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 import * as d3 from 'd3'
@@ -415,6 +450,62 @@ const ontologyProgress = ref(null) // Ontology generation progress
 const currentPhase = ref(-1) // -1: Uploading, 0: Generating ontology, 1: Building graph, 2: Complete
 const selectedItem = ref(null) // Selected node or edge
 const isFullScreen = ref(false)
+
+// Edit / delete / merge state
+const editMode = ref(false)
+const editBuffer = ref({})       // working copy of selected item's editable fields
+const mergeSelection = ref([])   // duplicate node uuids chosen for merge
+
+// Helper: resolve active graph id
+const activeGraphId = () => graphData.value?.graph_id || projectData.value?.graph_id
+
+const ontologyTypeOptions = computed(() =>
+  (projectData.value?.ontology?.entity_types || []).map(e => e.name).filter(Boolean))
+
+function startEdit() {
+  const d = selectedItem.value?.data || {}
+  if (selectedItem.value.type === 'node') {
+    editBuffer.value = { name: d.name || '', entity_type: (d.labels && d.labels[0]) || '',
+                         summary: d.summary || '', attributes: { ...(d.attributes || {}) } }
+  } else {
+    editBuffer.value = { fact: d.fact || '', fact_type: d.fact_type || d.name || '' }
+  }
+  editMode.value = true
+}
+
+async function saveEdit() {
+  const gid = activeGraphId()
+  const d = selectedItem.value.data
+  if (selectedItem.value.type === 'node') await updateNode(gid, d.uuid, editBuffer.value)
+  else await updateEdge(gid, d.uuid, editBuffer.value)
+  editMode.value = false
+  await refreshGraph()
+}
+
+async function deleteSelected() {
+  if (!window.confirm(t('graph.delete') + '?')) return
+  const gid = activeGraphId()
+  const d = selectedItem.value.data
+  if (selectedItem.value.type === 'node') await deleteNode(gid, d.uuid)
+  else await deleteEdge(gid, d.uuid)
+  selectedItem.value = null
+  await refreshGraph()
+}
+
+function toggleMergeCandidate(uuid) {
+  const i = mergeSelection.value.indexOf(uuid)
+  if (i >= 0) mergeSelection.value.splice(i, 1)
+  else mergeSelection.value.push(uuid)
+}
+
+async function doMerge() {
+  const primary = selectedItem.value.data.uuid
+  const dups = mergeSelection.value.filter(u => u !== primary)
+  if (!dups.length) return
+  await mergeNodes(activeGraphId(), primary, dups)
+  mergeSelection.value = []
+  await refreshGraph()
+}
 
 // DOM refs
 const graphContainer = ref(null)
@@ -679,12 +770,21 @@ const startBuildGraph = async () => {
   }
 }
 
+// Rebuild-discard guard
+async function confirmRebuildIfNeeded() {
+  if (graphData.value && (graphData.value.node_count || graphData.value.nodes?.length)) {
+    return window.confirm(t('graph.rebuildDiscardWarning'))
+  }
+  return true
+}
+
 // OntologyEditor handlers
 function onOntologySaved(data) {
   projectData.value.ontology = data.ontology
   projectData.value.analysis_summary = data.analysis_summary
 }
 async function onApproveBuild() {
+  if (!(await confirmRebuildIfNeeded())) return
   await startBuildGraph()  // existing function; advances to Phase 02
 }
 

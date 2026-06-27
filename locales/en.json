@@ -25,7 +25,8 @@
     "items": "items",
     "files": "files",
     "brand": "PredictAnything",
-    "stepCounter": "Step {step}/5"
+    "stepCounter": "Step {step}/5",
+    "save": "Save"
   },
   "meta": {
     "title": "PredictAnything - Predict Everything",
@@ -300,7 +301,15 @@
     "graphDataLoading": "Loading graph data...",
     "waitingOntology": "Waiting for ontology generation...",
     "toggleMaximize": "Maximize/Restore",
-    "closeHint": "Close hint"
+    "closeHint": "Close hint",
+    "edit": "Edit",
+    "delete": "Delete",
+    "nodeName": "Node name",
+    "summary": "Summary",
+    "factType": "Relation type",
+    "fact": "Fact",
+    "rebuildDiscardWarning": "Rebuilding replaces the current graph and discards manual edits. Continue?",
+    "mergeInto": "Merge selected into this node"
   },
   "history": {
     "title": "Simulation History",

@@ -25,7 +25,8 @@
     "items": "Einträge",
     "files": "Dateien",
     "brand": "PredictAnything",
-    "stepCounter": "Schritt {step}/5"
+    "stepCounter": "Schritt {step}/5",
+    "save": "Speichern"
   },
   "meta": {
     "title": "PredictAnything - Alles vorhersagen",
@@ -300,7 +301,15 @@
     "graphDataLoading": "Graph-Daten werden geladen...",
     "waitingOntology": "Warten auf Ontologie-Generierung...",
     "toggleMaximize": "Maximieren/Wiederherstellen",
-    "closeHint": "Hinweis schließen"
+    "closeHint": "Hinweis schließen",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "nodeName": "Knotenname",
+    "summary": "Zusammenfassung",
+    "factType": "Beziehungstyp",
+    "fact": "Fakt",
+    "rebuildDiscardWarning": "Beim Neuaufbau wird der aktuelle Graph ersetzt und manuelle Änderungen verworfen. Fortfahren?",
+    "mergeInto": "Ausgewählte in diesen Knoten zusammenführen"
   },
   "history": {
     "title": "Simulationsverlauf",

@@ -79,3 +79,19 @@ export function saveOntology(projectId, payload) {
     service({ url: `/api/graph/project/${projectId}/ontology`, method: 'put', data: payload })
   )
 }
+
+export function updateNode(graphId, uuid, fields) {
+  return requestWithRetry(() => service({ url: `/api/graph/${graphId}/node/${uuid}`, method: 'patch', data: fields }))
+}
+export function deleteNode(graphId, uuid) {
+  return requestWithRetry(() => service({ url: `/api/graph/${graphId}/node/${uuid}`, method: 'delete' }))
+}
+export function updateEdge(graphId, edgeUuid, fields) {
+  return requestWithRetry(() => service({ url: `/api/graph/${graphId}/edge/${edgeUuid}`, method: 'patch', data: fields }))
+}
+export function deleteEdge(graphId, edgeUuid) {
+  return requestWithRetry(() => service({ url: `/api/graph/${graphId}/edge/${edgeUuid}`, method: 'delete' }))
+}
+export function mergeNodes(graphId, primary, duplicates) {
+  return requestWithRetry(() => service({ url: `/api/graph/${graphId}/merge`, method: 'post', data: { primary, duplicates } }))
+}
