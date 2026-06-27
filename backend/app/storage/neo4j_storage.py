@@ -6,6 +6,7 @@ Includes: CRUD, NER/RE-based text ingestion, hybrid search, retry logic.
 """
 
 import json
+import re
 import time
 import uuid
 import logging
@@ -658,6 +659,118 @@ class Neo4jStorage(GraphStorage):
     # ----------------------------------------------------------------
     # Dict conversion helpers
     # ----------------------------------------------------------------
+
+    # ----------------------------------------------------------------
+    # Curation primitives (update/delete node & edge, merge)
+    # ----------------------------------------------------------------
+
+    _LABEL_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+    @staticmethod
+    def _assert_valid_label(label: str) -> None:
+        """Reject entity-type labels that aren't safe to interpolate into Cypher."""
+        if not isinstance(label, str) or not Neo4jStorage._LABEL_RE.match(label):
+            raise ValueError(f"Invalid entity type label: {label!r}")
+
+    @staticmethod
+    def _union_attributes(primary: dict, dup: dict) -> dict:
+        """Merge two attribute dicts; primary keys win."""
+        merged = dict(dup or {})
+        merged.update(primary or {})  # primary wins
+        return merged
+
+    def update_node(self, uuid: str, fields: dict) -> dict:
+        def _write(tx):
+            node = tx.run("MATCH (n:Entity {uuid:$u}) RETURN n, labels(n) AS labels", u=uuid).single()
+            if node is None:
+                raise ValueError(f"Node not found: {uuid}")
+            sets, params = [], {"u": uuid}
+            if "name" in fields:
+                sets.append("n.name=$name"); sets.append("n.name_lower=$name_lower")
+                params["name"] = fields["name"]; params["name_lower"] = (fields["name"] or "").lower()
+            if "summary" in fields:
+                sets.append("n.summary=$summary"); params["summary"] = fields["summary"]
+            if "attributes" in fields:
+                sets.append("n.attributes_json=$attrs"); params["attrs"] = json.dumps(fields["attributes"] or {})
+            if sets:
+                tx.run(f"MATCH (n:Entity {{uuid:$u}}) SET {', '.join(sets)}", **params)
+            if "entity_type" in fields and fields["entity_type"]:
+                self._assert_valid_label(fields["entity_type"])
+                cur_labels = [l for l in node["labels"] if l != "Entity"]
+                for old in cur_labels:
+                    tx.run(f"MATCH (n:Entity {{uuid:$u}}) REMOVE n:`{old}`", u=uuid)
+                tx.run(f"MATCH (n:Entity {{uuid:$u}}) SET n:`{fields['entity_type']}`", u=uuid)
+            rec = tx.run("MATCH (n:Entity {uuid:$u}) RETURN n, labels(n) AS labels", u=uuid).single()
+            return self._node_to_dict(rec["n"], rec["labels"])
+        with self._driver.session() as session:
+            return self._call_with_retry(session.execute_write, _write)
+
+    def delete_node(self, uuid: str) -> None:
+        def _write(tx):
+            tx.run("MATCH (n:Entity {uuid:$u}) DETACH DELETE n", u=uuid)
+        with self._driver.session() as session:
+            self._call_with_retry(session.execute_write, _write)
+
+    def update_edge(self, edge_uuid: str, fields: dict) -> dict:
+        def _write(tx):
+            sets, params = [], {"u": edge_uuid}
+            if "fact" in fields:
+                sets.append("r.fact=$fact"); params["fact"] = fields["fact"]
+            if "fact_type" in fields:
+                sets.append("r.name=$name"); params["name"] = fields["fact_type"]
+            if sets:
+                res = tx.run(
+                    f"MATCH (src:Entity)-[r:RELATION {{uuid:$u}}]->(tgt:Entity) "
+                    f"SET {', '.join(sets)} "
+                    f"RETURN r, src.uuid AS s, tgt.uuid AS t", **params).single()
+            else:
+                res = tx.run(
+                    "MATCH (src:Entity)-[r:RELATION {uuid:$u}]->(tgt:Entity) "
+                    "RETURN r, src.uuid AS s, tgt.uuid AS t", u=edge_uuid).single()
+            if res is None:
+                raise ValueError(f"Edge not found: {edge_uuid}")
+            return self._edge_to_dict(res["r"], res["s"], res["t"])
+        with self._driver.session() as session:
+            return self._call_with_retry(session.execute_write, _write)
+
+    def delete_edge(self, edge_uuid: str) -> None:
+        def _write(tx):
+            tx.run("MATCH ()-[r:RELATION {uuid:$u}]->() DELETE r", u=edge_uuid)
+        with self._driver.session() as session:
+            self._call_with_retry(session.execute_write, _write)
+
+    def merge_nodes(self, primary_uuid: str, duplicate_uuids: list) -> dict:
+        def _write(tx):
+            prim = tx.run("MATCH (n:Entity {uuid:$u}) RETURN n", u=primary_uuid).single()
+            if prim is None:
+                raise ValueError(f"Primary node not found: {primary_uuid}")
+            prim_attrs = json.loads(dict(prim["n"]).get("attributes_json") or "{}")
+            for dup in duplicate_uuids:
+                if dup == primary_uuid:
+                    continue
+                drec = tx.run("MATCH (n:Entity {uuid:$u}) RETURN n", u=dup).single()
+                if drec is None:
+                    continue
+                dup_attrs = json.loads(dict(drec["n"]).get("attributes_json") or "{}")
+                prim_attrs = self._union_attributes(prim_attrs, dup_attrs)
+                # Re-point outgoing edges (v1: best-effort, no parallel-edge dedup)
+                tx.run(
+                    "MATCH (d:Entity {uuid:$d})-[r:RELATION]->(o:Entity) "
+                    "MATCH (p:Entity {uuid:$p}) "
+                    "WHERE o.uuid <> $p "
+                    "CREATE (p)-[nr:RELATION]->(o) SET nr = properties(r) DELETE r", d=dup, p=primary_uuid)
+                # Re-point incoming edges
+                tx.run(
+                    "MATCH (o:Entity)-[r:RELATION]->(d:Entity {uuid:$d}) "
+                    "MATCH (p:Entity {uuid:$p}) "
+                    "WHERE o.uuid <> $p "
+                    "CREATE (o)-[nr:RELATION]->(p) SET nr = properties(r) DELETE r", d=dup, p=primary_uuid)
+                tx.run("MATCH (d:Entity {uuid:$d}) DETACH DELETE d", d=dup)
+            tx.run("MATCH (p:Entity {uuid:$p}) SET p.attributes_json=$a", p=primary_uuid, a=json.dumps(prim_attrs))
+            rec = tx.run("MATCH (n:Entity {uuid:$u}) RETURN n, labels(n) AS labels", u=primary_uuid).single()
+            return self._node_to_dict(rec["n"], rec["labels"])
+        with self._driver.session() as session:
+            return self._call_with_retry(session.execute_write, _write)
 
     @staticmethod
     def _node_to_dict(node, labels: List[str]) -> Dict[str, Any]:

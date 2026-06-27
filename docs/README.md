@@ -22,6 +22,13 @@ references from the original `666ghj/MiroFish`, and German terminology from
 the full breakdown. Beyond the major features documented above, recent
 maintenance changes:
 
+### Step 01/02 editors (`feat/ontology-graph-editors`)
+Interactive editing for the graph pipeline: an ontology editor behind an
+approve-and-build pause gate (full CRUD + block-breaker/warn-soft validation),
+and knowledge-graph curation (edit/delete/merge nodes & edges) via new Neo4j
+primitives and account-scoped endpoints. See the spec at
+`docs/superpowers/specs/2026-06-27-ontology-and-graph-editors-design.md`.
+
 ### Bilingual EN/DE i18n (PR #1, merged `f357a40`)
 Full German default + English fallback across UI, API responses, and
 LLM-generated content. See [`i18n.md`](i18n.md).
