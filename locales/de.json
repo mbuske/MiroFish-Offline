@@ -336,6 +336,7 @@
     "zepApiKeyMissing": "Neo4j-Verbindung nicht konfiguriert (NEO4J_URI / NEO4J_PASSWORD)",
     "ontologyNotGenerated": "Ontologie noch nicht generiert. Bitte rufen Sie zuerst /ontology/generate auf.",
     "graphBuilding": "Graph-Aufbau läuft. Nicht erneut absenden. Für einen erzwungenen Neuaufbau force: true hinzufügen.",
+    "ontologyValidationFailed": "Ontologie-Validierung fehlgeschlagen",
     "textNotFound": "Extrahierter Textinhalt nicht gefunden",
     "ontologyNotFound": "Ontologiedefinition nicht gefunden",
     "graphBuildStarted": "Graph-Aufbau-Aufgabe gestartet. Fortschritt abfragen über /task/{taskId}.",
