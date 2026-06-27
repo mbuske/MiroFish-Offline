@@ -695,6 +695,110 @@ def get_graph_data(graph_id: str):
         }), 500
 
 
+# ============== Graph Curation Endpoints (node/edge edit/delete, merge) ==============
+
+def _reject_if_building(graph_id):
+    """Return a 409 response if the graph's project is currently building, else None."""
+    getter = getattr(ProjectManager, "get_project_by_graph_id", None)
+    if getter is None:
+        return None
+    project = getter(graph_id)
+    if project and project.status == ProjectStatus.GRAPH_BUILDING:
+        return jsonify({"success": False, "error": t('api.graphBuilding')}), 409
+    return None
+
+
+@graph_bp.route('/<graph_id>/node/<uuid>', methods=['PATCH'])
+def patch_node(graph_id, uuid):
+    try:
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+        busy = _reject_if_building(graph_id)
+        if busy:
+            return busy
+        fields = request.get_json(silent=True) or {}
+        node = _get_storage().update_node(uuid, fields)
+        return jsonify({"success": True, "data": node})
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@graph_bp.route('/<graph_id>/node/<uuid>', methods=['DELETE'])
+def remove_node(graph_id, uuid):
+    try:
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+        busy = _reject_if_building(graph_id)
+        if busy:
+            return busy
+        _get_storage().delete_node(uuid)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@graph_bp.route('/<graph_id>/edge/<edge_uuid>', methods=['PATCH'])
+def patch_edge(graph_id, edge_uuid):
+    try:
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+        busy = _reject_if_building(graph_id)
+        if busy:
+            return busy
+        fields = request.get_json(silent=True) or {}
+        edge = _get_storage().update_edge(edge_uuid, fields)
+        return jsonify({"success": True, "data": edge})
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@graph_bp.route('/<graph_id>/edge/<edge_uuid>', methods=['DELETE'])
+def remove_edge(graph_id, edge_uuid):
+    try:
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+        busy = _reject_if_building(graph_id)
+        if busy:
+            return busy
+        _get_storage().delete_edge(edge_uuid)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@graph_bp.route('/<graph_id>/merge', methods=['POST'])
+def merge_graph_nodes(graph_id):
+    try:
+        try:
+            require_graph_account_access(graph_id)
+        except PermissionError:
+            return jsonify({"success": False, "error": t('api.graphNotFound', id=graph_id)}), 404
+        busy = _reject_if_building(graph_id)
+        if busy:
+            return busy
+        data = request.get_json(silent=True) or {}
+        primary = data.get("primary")
+        duplicates = data.get("duplicates") or []
+        if not primary or not duplicates:
+            return jsonify({"success": False, "error": t('api.mergeRequiresNodes')}), 400
+        node = _get_storage().merge_nodes(primary, duplicates)
+        return jsonify({"success": True, "data": node})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
 @graph_bp.route('/delete/<graph_id>', methods=['DELETE'])
 def delete_graph(graph_id: str):
     """

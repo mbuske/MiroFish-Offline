@@ -395,7 +395,8 @@
     "envRunning": "Umgebung läuft und ist bereit für Interview-Befehle",
     "envNotRunningShort": "Umgebung läuft nicht oder ist geschlossen",
     "requireGraphIdAndQuery": "Bitte geben Sie graph_id und query an",
-    "initReportAgent": "Report Agent wird initialisiert..."
+    "initReportAgent": "Report Agent wird initialisiert...",
+    "mergeRequiresNodes": "Ein Primärknoten und mindestens ein Duplikat sind erforderlich."
   },
   "progress": {
     "initGraphService": "Graph-Aufbaudienst wird initialisiert...",
