@@ -5,6 +5,14 @@ from app.storage.neo4j_storage import Neo4jStorage
 
 
 # ---------- always-on pure helper test ----------
+def test_assert_valid_label_accepts_good_and_rejects_bad():
+    Neo4jStorage._assert_valid_label("Person")       # no raise
+    Neo4jStorage._assert_valid_label("Worker_2")     # no raise
+    for bad in ["Foo` SET n.x=1", "has space", "", "1Starts", "a-b"]:
+        with pytest.raises(ValueError):
+            Neo4jStorage._assert_valid_label(bad)
+
+
 def test_union_attributes_primary_wins():
     merged = Neo4jStorage._union_attributes({"role": "lead", "age": "30"}, {"role": "member", "city": "X"})
     assert merged == {"role": "lead", "age": "30", "city": "X"}

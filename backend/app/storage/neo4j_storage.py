@@ -6,6 +6,7 @@ Includes: CRUD, NER/RE-based text ingestion, hybrid search, retry logic.
 """
 
 import json
+import re
 import time
 import uuid
 import logging
@@ -663,6 +664,14 @@ class Neo4jStorage(GraphStorage):
     # Curation primitives (update/delete node & edge, merge)
     # ----------------------------------------------------------------
 
+    _LABEL_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+    @staticmethod
+    def _assert_valid_label(label: str) -> None:
+        """Reject entity-type labels that aren't safe to interpolate into Cypher."""
+        if not isinstance(label, str) or not Neo4jStorage._LABEL_RE.match(label):
+            raise ValueError(f"Invalid entity type label: {label!r}")
+
     @staticmethod
     def _union_attributes(primary: dict, dup: dict) -> dict:
         """Merge two attribute dicts; primary keys win."""
@@ -682,11 +691,11 @@ class Neo4jStorage(GraphStorage):
             if "summary" in fields:
                 sets.append("n.summary=$summary"); params["summary"] = fields["summary"]
             if "attributes" in fields:
-                import json as _json
-                sets.append("n.attributes_json=$attrs"); params["attrs"] = _json.dumps(fields["attributes"] or {})
+                sets.append("n.attributes_json=$attrs"); params["attrs"] = json.dumps(fields["attributes"] or {})
             if sets:
                 tx.run(f"MATCH (n:Entity {{uuid:$u}}) SET {', '.join(sets)}", **params)
             if "entity_type" in fields and fields["entity_type"]:
+                self._assert_valid_label(fields["entity_type"])
                 cur_labels = [l for l in node["labels"] if l != "Entity"]
                 for old in cur_labels:
                     tx.run(f"MATCH (n:Entity {{uuid:$u}}) REMOVE n:`{old}`", u=uuid)
@@ -731,19 +740,18 @@ class Neo4jStorage(GraphStorage):
             self._call_with_retry(session.execute_write, _write)
 
     def merge_nodes(self, primary_uuid: str, duplicate_uuids: list) -> dict:
-        import json as _json
         def _write(tx):
             prim = tx.run("MATCH (n:Entity {uuid:$u}) RETURN n", u=primary_uuid).single()
             if prim is None:
                 raise ValueError(f"Primary node not found: {primary_uuid}")
-            prim_attrs = _json.loads(dict(prim["n"]).get("attributes_json") or "{}")
+            prim_attrs = json.loads(dict(prim["n"]).get("attributes_json") or "{}")
             for dup in duplicate_uuids:
                 if dup == primary_uuid:
                     continue
                 drec = tx.run("MATCH (n:Entity {uuid:$u}) RETURN n", u=dup).single()
                 if drec is None:
                     continue
-                dup_attrs = _json.loads(dict(drec["n"]).get("attributes_json") or "{}")
+                dup_attrs = json.loads(dict(drec["n"]).get("attributes_json") or "{}")
                 prim_attrs = self._union_attributes(prim_attrs, dup_attrs)
                 # Re-point outgoing edges (v1: best-effort, no parallel-edge dedup)
                 tx.run(
@@ -758,7 +766,7 @@ class Neo4jStorage(GraphStorage):
                     "WHERE o.uuid <> $p "
                     "CREATE (o)-[nr:RELATION]->(p) SET nr = properties(r) DELETE r", d=dup, p=primary_uuid)
                 tx.run("MATCH (d:Entity {uuid:$d}) DETACH DELETE d", d=dup)
-            tx.run("MATCH (p:Entity {uuid:$p}) SET p.attributes_json=$a", p=primary_uuid, a=_json.dumps(prim_attrs))
+            tx.run("MATCH (p:Entity {uuid:$p}) SET p.attributes_json=$a", p=primary_uuid, a=json.dumps(prim_attrs))
             rec = tx.run("MATCH (n:Entity {uuid:$u}) RETURN n, labels(n) AS labels", u=primary_uuid).single()
             return self._node_to_dict(rec["n"], rec["labels"])
         with self._driver.session() as session:
