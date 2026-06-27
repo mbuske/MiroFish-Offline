@@ -456,6 +456,13 @@ const editMode = ref(false)
 const editBuffer = ref({})       // working copy of selected item's editable fields
 const mergeSelection = ref([])   // duplicate node uuids chosen for merge
 
+// Reset transient edit/merge state whenever the selection changes
+watch(selectedItem, () => {
+  editMode.value = false
+  editBuffer.value = {}
+  mergeSelection.value = []
+})
+
 // Helper: resolve active graph id
 const activeGraphId = () => graphData.value?.graph_id || projectData.value?.graph_id
 
