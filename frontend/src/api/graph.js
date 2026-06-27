@@ -68,3 +68,14 @@ export function getProject(projectId) {
     method: 'get'
   })
 }
+
+/**
+ * Save a human-edited ontology (Step 01 pause gate).
+ * @param {string} projectId
+ * @param {{ontology: object, analysis_summary?: string}} payload
+ */
+export function saveOntology(projectId, payload) {
+  return requestWithRetry(() =>
+    service({ url: `/api/graph/project/${projectId}/ontology`, method: 'put', data: payload })
+  )
+}

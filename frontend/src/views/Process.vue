@@ -259,38 +259,15 @@
                 </div>
               </div>
               
-              <!-- Generated ontology information -->
-              <div class="detail-section" v-if="projectData?.ontology">
-                <div class="detail-label">{{ $t('process.generatedEntityTypes', { n: projectData.ontology.entity_types?.length || 0 }) }}</div>
-                <div class="entity-tags">
-                  <span 
-                    v-for="entity in projectData.ontology.entity_types" 
-                    :key="entity.name"
-                    class="entity-tag"
-                  >
-                    {{ entity.name }}
-                  </span>
-                </div>
-              </div>
-              
-              <div class="detail-section" v-if="projectData?.ontology">
-                <div class="detail-label">{{ $t('process.generatedRelationTypes', { n: projectData.ontology.relation_types?.length || 0 }) }}</div>
-                <div class="relation-list">
-                  <div 
-                    v-for="(rel, idx) in projectData.ontology.relation_types?.slice(0, 5) || []" 
-                    :key="idx"
-                    class="relation-item"
-                  >
-                    <span class="rel-source">{{ rel.source_type }}</span>
-                    <span class="rel-arrow">→</span>
-                    <span class="rel-name">{{ rel.name }}</span>
-                    <span class="rel-arrow">→</span>
-                    <span class="rel-target">{{ rel.target_type }}</span>
-                  </div>
-                  <div v-if="(projectData.ontology.relation_types?.length || 0) > 5" class="relation-more">
-                    {{ $t('process.moreRelationships', { n: projectData.ontology.relation_types.length - 5 }) }}
-                  </div>
-                </div>
+              <!-- OntologyEditor: editable pause gate -->
+              <div class="detail-section" v-if="projectData?.ontology && currentPhase === 0">
+                <OntologyEditor
+                  :project-id="currentProjectId"
+                  :ontology="projectData.ontology"
+                  :analysis-summary="projectData.analysis_summary || ''"
+                  @saved="onOntologySaved"
+                  @approve-build="onApproveBuild"
+                />
               </div>
               
               <!-- Waiting state -->
@@ -416,6 +393,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { generateOntology, getProject, buildGraph, getTaskStatus, getGraphData } from '../api/graph'
+import OntologyEditor from '@/components/OntologyEditor.vue'
 import { getPendingUpload, clearPendingUpload } from '../store/pendingUpload'
 import * as d3 from 'd3'
 
@@ -606,9 +584,6 @@ const handleNewProject = async () => {
       })
 
       ontologyProgress.value = null
-
-      // Automatically start graph building
-      await startBuildGraph()
     } else {
       error.value = response.error || t('process.errorOntologyGenerationFailed')
     }
@@ -629,11 +604,6 @@ const loadProject = async () => {
     if (response.success) {
       projectData.value = response.data
       updatePhaseByStatus(response.data.status)
-
-      // Automatically start graph building
-      if (response.data.status === 'ontology_generated' && !response.data.graph_id) {
-        await startBuildGraph()
-      }
 
       // Continue polling running build tasks
       if (response.data.status === 'graph_building' && response.data.graph_build_task_id) {
@@ -707,6 +677,15 @@ const startBuildGraph = async () => {
     error.value = t('process.errorStartGraphBuildFailedDetail', { error: err.message || t('common.unknownError') })
     buildProgress.value = null
   }
+}
+
+// OntologyEditor handlers
+function onOntologySaved(data) {
+  projectData.value.ontology = data.ontology
+  projectData.value.analysis_summary = data.analysis_summary
+}
+async function onApproveBuild() {
+  await startBuildGraph()  // existing function; advances to Phase 02
 }
 
 // Graph data polling timer
