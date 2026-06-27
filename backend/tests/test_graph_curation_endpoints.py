@@ -114,6 +114,11 @@ def test_merge_empty_duplicates_400(client):
     assert r.status_code == 400
 
 
+def test_merge_non_list_duplicates_400(client):
+    r = client.post("/api/graph/g1/merge", json={"primary": "p", "duplicates": "d1"})
+    assert r.status_code == 400
+
+
 def test_cross_account_404(client):
     client._fake.account = "other"
     r = client.delete("/api/graph/g1/node/n1")

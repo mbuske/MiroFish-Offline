@@ -790,8 +790,8 @@ def merge_graph_nodes(graph_id):
             return busy
         data = request.get_json(silent=True) or {}
         primary = data.get("primary")
-        duplicates = data.get("duplicates") or []
-        if not primary or not duplicates:
+        duplicates = data.get("duplicates")
+        if not isinstance(primary, str) or not primary or not isinstance(duplicates, list) or not duplicates:
             return jsonify({"success": False, "error": t('api.mergeRequiresNodes')}), 400
         node = _get_storage().merge_nodes(primary, duplicates)
         return jsonify({"success": True, "data": node})
