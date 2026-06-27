@@ -85,7 +85,7 @@ const isAdminScope = auth.isSuperadmin.value
 const base = isAdminScope ? '/api/admin/branding' : '/api/account/branding'
 
 const primaryColor = ref('#000000')
-const accentColor = ref('#FF4500')
+const accentColor = ref('#5BAEDC')
 const currentLogoUrl = ref(null)
 const loadError = ref('')
 const saveError = ref('')

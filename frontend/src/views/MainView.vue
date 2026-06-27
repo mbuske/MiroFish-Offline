@@ -51,7 +51,7 @@
       <!-- Right Panel: Step Components -->
       <div class="panel-wrapper right" :style="rightPanelStyle">
         <!-- Step 1: Graph Build -->
-        <Step1GraphBuild 
+        <Step1GraphBuild
           v-if="currentStep === 1"
           :currentPhase="currentPhase"
           :projectData="projectData"
@@ -60,6 +60,8 @@
           :graphData="graphData"
           :systemLogs="systemLogs"
           @next-step="handleNextStep"
+          @approve-build="startBuildGraph"
+          @ontology-saved="onOntologySaved"
         />
         <!-- Step 2: Env Setup -->
         <Step2EnvSetup
@@ -180,6 +182,13 @@ const handleGoBack = () => {
   }
 }
 
+const onOntologySaved = (data) => {
+  if (projectData.value && data) {
+    projectData.value.ontology = data.ontology
+    projectData.value.analysis_summary = data.analysis_summary
+  }
+}
+
 // --- Data Logic ---
 
 const initProject = async () => {
@@ -218,7 +227,6 @@ const handleNewProject = async () => {
       router.replace({ name: 'Process', params: { projectId: res.data.project_id } })
       ontologyProgress.value = null
       addLog(`Ontology generated successfully for project ${res.data.project_id}`)
-      await startBuildGraph()
     } else {
       error.value = res.error || 'Ontology generation failed'
       addLog(`Error generating ontology: ${error.value}`)
@@ -241,9 +249,7 @@ const loadProject = async () => {
       updatePhaseByStatus(res.data.status)
       addLog(`Project loaded. Status: ${res.data.status}`)
       
-      if (res.data.status === 'ontology_generated' && !res.data.graph_id) {
-        await startBuildGraph()
-      } else if (res.data.status === 'graph_building' && res.data.graph_build_task_id) {
+      if (res.data.status === 'graph_building' && res.data.graph_build_task_id) {
         currentPhase.value = 1
         startPollingTask(res.data.graph_build_task_id)
         startGraphPolling()
@@ -274,6 +280,9 @@ const updatePhaseByStatus = (status) => {
 }
 
 const startBuildGraph = async () => {
+  if (graphData.value && (graphData.value.node_count || graphData.value.nodes?.length)) {
+    if (!window.confirm(t('graph.rebuildDiscardWarning'))) return
+  }
   try {
     currentPhase.value = 1
     buildProgress.value = { progress: 0, message: 'Starting build...' }
@@ -518,7 +527,7 @@ onUnmounted(() => {
   background: #CCC;
 }
 
-.status-indicator.processing .dot { background: #FF5722; animation: pulse 1s infinite; }
+.status-indicator.processing .dot { background: #5BAEDC; animation: pulse 1s infinite; }
 .status-indicator.completed .dot { background: #4CAF50; }
 .status-indicator.error .dot { background: #F44336; }
 

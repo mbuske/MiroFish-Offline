@@ -55,6 +55,9 @@
             <span v-if="selectedItem.type === 'node'" class="detail-type-badge" :style="{ background: selectedItem.color, color: '#fff' }">
               {{ selectedItem.entityType }}
             </span>
+            <button v-if="!editMode" class="detail-action" @click="startEdit">{{ $t('graph.edit') }}</button>
+            <button v-else class="detail-action" @click="saveEdit">{{ $t('common.save') }}</button>
+            <button class="detail-action danger" @click="deleteSelected">{{ $t('graph.delete') }}</button>
             <button class="detail-close" @click="closeDetailPanel">×</button>
           </div>
           
@@ -99,8 +102,29 @@
                 </span>
               </div>
             </div>
+
+            <!-- Edit fields (node) -->
+            <div v-if="editMode" class="detail-section edit-section">
+              <div class="section-title">{{ $t('graph.nodeName') }}</div>
+              <input v-model="editBuffer.name" class="edit-input" />
+              <div class="section-title" style="margin-top:8px">{{ $t('graph.summary') }}</div>
+              <select v-model="editBuffer.entity_type" class="edit-input">
+                <option v-for="opt in [...new Set([...ontologyTypeNames, editBuffer.entity_type].filter(Boolean))]" :key="opt" :value="opt">{{ opt }}</option>
+              </select>
+              <textarea v-model="editBuffer.summary" class="edit-input" rows="3" style="margin-top:8px"></textarea>
+            </div>
+
+            <!-- Merge UI (node only) -->
+            <div class="merge-box" v-if="!editMode && selectedItem.type === 'node' && graphData?.nodes?.length > 1">
+              <div class="section-title">{{ $t('graph.mergeInto') }}</div>
+              <label v-for="n in graphData.nodes.filter(n => n.uuid !== selectedItem.data.uuid)" :key="n.uuid" class="merge-item">
+                <input type="checkbox" :checked="mergeSelection.includes(n.uuid)" @change="toggleMergeCandidate(n.uuid)" />
+                <span>{{ n.name }}</span>
+              </label>
+              <button class="detail-action" :disabled="!mergeSelection.length" @click="doMerge" style="margin-top:8px">{{ $t('graph.mergeInto') }}</button>
+            </div>
           </div>
-          
+
           <!-- Edge Details -->
           <div v-else class="detail-content">
             <!-- Self-Loop Group Details -->
@@ -195,6 +219,14 @@
                 <span class="detail-label">{{ $t('graphx.validFrom') }}:</span>
                 <span class="detail-value">{{ formatDateTime(selectedItem.data.valid_at) }}</span>
               </div>
+
+              <!-- Edit fields (edge) -->
+              <div v-if="editMode" class="detail-section edit-section">
+                <div class="section-title">{{ $t('graph.factType') }}</div>
+                <input v-model="editBuffer.fact_type" class="edit-input" />
+                <div class="section-title" style="margin-top:8px">{{ $t('graph.fact') }}</div>
+                <textarea v-model="editBuffer.fact" class="edit-input" rows="3"></textarea>
+              </div>
             </template>
           </div>
         </div>
@@ -239,6 +271,7 @@
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import * as d3 from 'd3'
+import { updateNode, deleteNode, updateEdge, deleteEdge, mergeNodes } from '../api/graph'
 
 const { t } = useI18n()
 
@@ -259,10 +292,18 @@ const expandedSelfLoops = ref(new Set()) // Expanded self-loop items
 const showSimulationFinishedHint = ref(false) // Simulation finished hint
 const wasSimulating = ref(false) // Track whether was simulating before
 
+const editMode = ref(false)
+const editBuffer = ref({})
+const mergeSelection = ref([])
+const ontologyTypeNames = computed(() => entityTypes.value.map(t => t.name).filter(Boolean))
+const activeGraphId = () => props.graphData?.graph_id
+
 // Dismiss simulation finished hint
 const dismissFinishedHint = () => {
   showSimulationFinishedHint.value = false
 }
+
+watch(selectedItem, () => { editMode.value = false; editBuffer.value = {}; mergeSelection.value = [] })
 
 // Watch isSimulating change, detect simulation end
 watch(() => props.isSimulating, (newValue, oldValue) => {
@@ -322,6 +363,40 @@ const formatDateTime = (dateStr) => {
 const closeDetailPanel = () => {
   selectedItem.value = null
   expandedSelfLoops.value = new Set() // Reset expand state
+}
+
+const startEdit = () => {
+  const d = selectedItem.value?.data || {}
+  if (selectedItem.value.type === 'node') {
+    editBuffer.value = { name: d.name || '', entity_type: selectedItem.value.entityType || (d.labels && d.labels.find(l => l !== 'Entity')) || '', summary: d.summary || '' }
+  } else {
+    editBuffer.value = { fact: d.fact || '', fact_type: d.fact_type || d.name || '' }
+  }
+  editMode.value = true
+}
+const saveEdit = async () => {
+  const gid = activeGraphId(); const d = selectedItem.value.data
+  if (selectedItem.value.type === 'node') await updateNode(gid, d.uuid, editBuffer.value)
+  else await updateEdge(gid, d.uuid, editBuffer.value)
+  editMode.value = false; selectedItem.value = null; emit('refresh')
+}
+const deleteSelected = async () => {
+  if (!window.confirm(t('graph.delete') + '?')) return
+  const gid = activeGraphId(); const d = selectedItem.value.data
+  if (selectedItem.value.type === 'node') await deleteNode(gid, d.uuid)
+  else await deleteEdge(gid, d.uuid)
+  selectedItem.value = null; emit('refresh')
+}
+const toggleMergeCandidate = (uuid) => {
+  const i = mergeSelection.value.indexOf(uuid)
+  if (i >= 0) mergeSelection.value.splice(i, 1); else mergeSelection.value.push(uuid)
+}
+const doMerge = async () => {
+  const primary = selectedItem.value.data.uuid
+  const dups = mergeSelection.value.filter(u => u !== primary)
+  if (!dups.length) return
+  await mergeNodes(activeGraphId(), primary, dups)
+  mergeSelection.value = []; selectedItem.value = null; emit('refresh')
 }
 
 let currentSimulation = null
@@ -1423,4 +1498,55 @@ input:checked + .slider:before {
   padding: 3px 6px;
   font-size: 9px;
 }
+
+/* Curation action buttons */
+.detail-action {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid #E0E0E0;
+  background: #FFF;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  color: #333;
+  transition: all 0.2s;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+.detail-action:hover:not(:disabled) {
+  background: #F5F5F5;
+  border-color: #CCC;
+}
+.detail-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.detail-action.danger {
+  border-color: #f8d7da;
+  color: #c00;
+}
+.detail-action.danger:hover {
+  background: #fff0f0;
+}
+.edit-input {
+  width: 100%;
+  border: 1px solid #DDD;
+  border-radius: 3px;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: system-ui, sans-serif;
+  box-sizing: border-box;
+}
+.edit-section { background: #FAFAFA; padding: 10px; border-radius: 4px; }
+.merge-box { margin-top: 16px; padding-top: 14px; border-top: 1px solid #F0F0F0; }
+.merge-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #444;
+  padding: 3px 0;
+  cursor: pointer;
+}
+.merge-item input { cursor: pointer; }
 </style>
