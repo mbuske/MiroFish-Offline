@@ -961,7 +961,8 @@
     "errUnknownRef": "Edge '{name}' references unknown entity type: {ref}",
     "warnEntityCount": "Recommended exactly 10 entity types (have {n}).",
     "warnEdgeCount": "Recommended 6-10 edge types (have {n}).",
-    "warnFallback": "Missing recommended fallback type: {fb}."
+    "warnFallback": "Missing recommended fallback type: {fb}.",
+    "analysisSummary": "Analysis summary"
   },
   "accounts": {
     "menuTitle": "Accounts",

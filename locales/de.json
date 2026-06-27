@@ -961,7 +961,8 @@
     "errUnknownRef": "Kante '{name}' referenziert unbekannten Entitätstyp: {ref}",
     "warnEntityCount": "Empfohlen sind genau 10 Entitätstypen (aktuell {n}).",
     "warnEdgeCount": "Empfohlen sind 6-10 Kantentypen (aktuell {n}).",
-    "warnFallback": "Empfohlener Fallback-Typ fehlt: {fb}."
+    "warnFallback": "Empfohlener Fallback-Typ fehlt: {fb}.",
+    "analysisSummary": "Analyse-Zusammenfassung"
   },
   "accounts": {
     "menuTitle": "Accounts",
