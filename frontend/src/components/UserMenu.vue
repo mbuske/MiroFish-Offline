@@ -209,7 +209,7 @@ onUnmounted(() => {
 }
 
 .locale-item.active {
-  color: var(--brand-primary, #FF4500);
+  color: var(--brand-primary, #5BAEDC);
 }
 
 .menu-item {

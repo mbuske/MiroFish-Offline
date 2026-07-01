@@ -73,13 +73,23 @@
             </div>
           </div>
 
-          <!-- Generated Entity Tags -->
-          <div v-if="projectData?.ontology?.entity_types" class="tags-container" :class="{ 'dimmed': selectedOntologyItem }">
+          <!-- Editable ontology (pause gate) — only shown during phase 0 -->
+          <OntologyEditor
+            v-if="currentPhase === 0 && projectData?.ontology"
+            :project-id="projectData.project_id"
+            :ontology="projectData.ontology"
+            :analysis-summary="projectData.analysis_summary || ''"
+            @saved="$emit('ontology-saved', $event)"
+            @approve-build="$emit('approve-build')"
+          />
+
+          <!-- Generated Entity Tags (read-only, shown after build) -->
+          <div v-if="currentPhase > 0 && projectData?.ontology?.entity_types" class="tags-container" :class="{ 'dimmed': selectedOntologyItem }">
             <span class="tag-label">{{ $t('step1x.generatedEntityTypes') }}</span>
             <div class="tags-list">
-              <span 
-                v-for="entity in projectData.ontology.entity_types" 
-                :key="entity.name" 
+              <span
+                v-for="entity in projectData.ontology.entity_types"
+                :key="entity.name"
                 class="entity-tag clickable"
                 @click="selectOntologyItem(entity, 'entity')"
               >
@@ -88,13 +98,13 @@
             </div>
           </div>
 
-          <!-- Generated Relation Tags -->
-          <div v-if="projectData?.ontology?.edge_types" class="tags-container" :class="{ 'dimmed': selectedOntologyItem }">
+          <!-- Generated Relation Tags (read-only, shown after build) -->
+          <div v-if="currentPhase > 0 && projectData?.ontology?.edge_types" class="tags-container" :class="{ 'dimmed': selectedOntologyItem }">
             <span class="tag-label">{{ $t('step1x.generatedRelationTypes') }}</span>
             <div class="tags-list">
-              <span 
-                v-for="rel in projectData.ontology.edge_types" 
-                :key="rel.name" 
+              <span
+                v-for="rel in projectData.ontology.edge_types"
+                :key="rel.name"
                 class="entity-tag clickable"
                 @click="selectOntologyItem(rel, 'relation')"
               >
@@ -191,6 +201,7 @@ import { computed, ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createSimulation } from '../api/simulation'
+import OntologyEditor from './OntologyEditor.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -204,7 +215,7 @@ const props = defineProps({
   systemLogs: { type: Array, default: () => [] }
 })
 
-defineEmits(['next-step'])
+defineEmits(['next-step', 'approve-build', 'ontology-saved'])
 
 const selectedOntologyItem = ref(null)
 const logContent = ref(null)
@@ -302,7 +313,7 @@ watch(() => props.systemLogs.length, () => {
 }
 
 .step-card.active {
-  border-color: #FF5722;
+  border-color: #5BAEDC;
   box-shadow: 0 4px 12px rgba(255, 87, 34, 0.08);
 }
 
@@ -346,8 +357,8 @@ watch(() => props.systemLogs.length, () => {
 }
 
 .badge.success { background: #E8F5E9; color: #2E7D32; }
-.badge.processing { background: #FF5722; color: #FFF; }
-.badge.accent { background: #FF5722; color: #FFF; }
+.badge.processing { background: #5BAEDC; color: #FFF; }
+.badge.accent { background: #5BAEDC; color: #FFF; }
 .badge.pending { background: #F5F5F5; color: #999; }
 
 .api-note {
@@ -628,15 +639,15 @@ watch(() => props.systemLogs.length, () => {
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: #FF5722;
+  color: #5BAEDC;
   margin-bottom: 12px;
 }
 
 .spinner-sm {
   width: 14px;
   height: 14px;
-  border: 2px solid #FFCCBC;
-  border-top-color: #FF5722;
+  border: 2px solid #C9E6F5;
+  border-top-color: #5BAEDC;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }

@@ -262,7 +262,7 @@ async function onApproveBuild() {
 .oe-arrow { color: #999; }
 .oe-add, .oe-add-sm, .oe-save, .oe-build { font-family: 'JetBrains Mono', monospace; cursor: pointer; border: 1px solid #CCC; background: transparent; padding: 4px 10px; font-size: 0.8rem; }
 .oe-save, .oe-build { background: #000; color: #fff; border: none; padding: 8px 18px; }
-.oe-build { background: var(--brand-primary, #FF4500); }
+.oe-build { background: var(--brand-primary, #5BAEDC); }
 .oe-del { background: transparent; border: none; color: #c00; cursor: pointer; }
 .oe-errors { color: #c00; font-size: 0.75rem; }
 .oe-warnings { color: #b8860b; font-size: 0.75rem; }
